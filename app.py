@@ -265,15 +265,13 @@ def analyze():
     fda = fetch_fda_labels(molecule)
     rxnorm = fetch_rxnorm_info(molecule)
 
-    return jsonify(
-        {
-            "molecule": molecule,
-            "papers": papers,
-            "trials": trials,
-            "fda": fda,
-            "rxnorm": rxnorm,
-        }
-    )
+    return jsonify({
+        "molecule": molecule,
+        "papers": papers,
+        "clinical_trials": trials,
+        "fda_labels": fda,
+        "rxnorm": rxnorm,
+    })
 
 
 @app.route("/stream_analysis", methods=["POST"])
