@@ -15,6 +15,8 @@ const dataSection = document.getElementById("data-section");
 const reportSection = document.getElementById("report-section");
 const errorBanner = document.getElementById("error-banner");
 const errorMsg = document.getElementById("error-msg");
+const voiceBtn = document.getElementById("voice-btn");
+const autocompleteDropdown = document.getElementById("autocomplete-results");
 
 const statPapers = document.getElementById("stat-papers");
 const statPreprints = document.getElementById("stat-preprints");
@@ -170,7 +172,7 @@ async function startAnalysis() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ molecule }),
-      signal: AbortSignal.timeout(45000), // extended for 10 APIs
+      signal: AbortSignal.timeout(60000), // v2.1: extended to 60s for parallel APIs
     });
 
     // 7 loading steps
@@ -228,6 +230,134 @@ async function startAnalysis() {
   markAllStepsDone();
   hide(loadingSection);
   analyzeBtn.disabled = false;
+}
+
+// ── UX Polish: Autocomplete & Voice v2.3 (Google Standard) ──
+
+let debounceTimer;
+let activeIndex = -1;
+let suggestionsList = [];
+
+searchInput.addEventListener("input", () => {
+  clearTimeout(debounceTimer);
+  const q = searchInput.value.trim();
+  if (q.length === 0) {
+    hideAutocomplete();
+    return;
+  }
+  if (q.length < 2) return;
+  debounceTimer = setTimeout(() => fetchSuggestions(q), 300);
+});
+
+// v2.3.2: Demo Shortcut (Show trending on first click)
+searchInput.addEventListener("focus", () => {
+  if (searchInput.value.trim() === "") {
+    suggestionsList = ["Metformin", "Aspirin", "Sildenafil", "Ibuprofen", "Thalidomide"];
+    renderAutocomplete("");
+  }
+});
+
+// v2.3: Keyboard Navigation
+searchInput.addEventListener("keydown", (e) => {
+  const items = autocompleteDropdown.querySelectorAll(".autocomplete-item");
+  if (!items.length) return;
+
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    activeIndex = (activeIndex + 1) % items.length;
+    updateActiveItem(items);
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    activeIndex = (activeIndex - 1 + items.length) % items.length;
+    updateActiveItem(items);
+  } else if (e.key === "Enter") {
+    if (activeIndex > -1) {
+      e.preventDefault();
+      selectSuggestion(suggestionsList[activeIndex]);
+    }
+  } else if (e.key === "Escape") {
+    hideAutocomplete();
+  }
+});
+
+function updateActiveItem(items) {
+  items.forEach((item, i) => {
+    item.classList.toggle("active", i === activeIndex);
+    if (i === activeIndex) {
+      item.scrollIntoView({ block: "nearest" });
+    }
+  });
+}
+
+async function fetchSuggestions(q) {
+  try {
+    const res = await fetch(`/api/suggest?q=${encodeURIComponent(q)}`);
+    suggestionsList = await res.json();
+    if (!suggestionsList.length) {
+      hideAutocomplete();
+      return;
+    }
+    activeIndex = -1;
+    renderAutocomplete(q);
+  } catch (e) {
+    console.error("[Suggest] v2.3 Error:", e);
+  }
+}
+
+function renderAutocomplete(query) {
+  const regex = new RegExp(`(${query})`, "gi");
+  autocompleteDropdown.innerHTML = suggestionsList
+    .map((item, i) => {
+      // Highlight matching text using <b> tag
+      const highlighted = item.replace(regex, "<b>$1</b>");
+      return `<div class="autocomplete-item" onclick="selectSuggestion('${item.replace(/'/g, "\\'")}')" data-index="${i}">${highlighted}</div>`;
+    })
+    .join("");
+  autocompleteDropdown.classList.remove("hidden");
+}
+
+function hideAutocomplete() {
+  autocompleteDropdown.classList.add("hidden");
+  activeIndex = -1;
+}
+
+window.selectSuggestion = function(val) {
+  searchInput.value = val;
+  hideAutocomplete();
+  startAnalysis();
+};
+
+// Document click to hide autocomplete
+document.addEventListener("click", (e) => {
+  if (!searchInput.contains(e.target) && !autocompleteDropdown.contains(e.target)) {
+    hideAutocomplete();
+  }
+});
+
+// Voice Search logic
+if (voiceBtn) {
+  voiceBtn.addEventListener("click", () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Voice search is not supported in this browser.");
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.start();
+
+    voiceBtn.classList.add("recording");
+
+    recognition.onresult = (event) => {
+      const text = event.results[0][0].transcript;
+      searchInput.value = text;
+      voiceBtn.classList.remove("recording");
+      startAnalysis();
+    };
+
+    recognition.onerror = () => voiceBtn.classList.remove("recording");
+    recognition.onend = () => voiceBtn.classList.remove("recording");
+  });
 }
 
 // ── Experimental Banner ──────────────────────────────────────

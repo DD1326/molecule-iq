@@ -56,31 +56,34 @@
       then synthesises a structured Innovation Opportunity Report — in under 30 seconds.
     </p>
 
-    <!-- Search bar -->
-    <div class="search-wrap">
-      <label for="search-input" class="visually-hidden">Drug molecule name</label>
-      <input
-        type="text"
-        id="search-input"
-        class="search-input"
-        placeholder="e.g. Metformin, Aspirin, Sildenafil…"
-        autocomplete="off"
-        spellcheck="false"
-        aria-label="Drug molecule name"
-      />
-      <button id="analyze-btn" class="btn-analyze" aria-label="Analyze molecule">
-        ⚡ Analyze
-      </button>
-    </div>
-
-    <!-- Quick pills -->
-    <div class="quick-pills" role="list" aria-label="Quick search molecules">
+    <!-- Popular Searches Widget (v2.2) -->
+    <div class="popular-searches" role="list" aria-label="Popular search molecules">
       <button class="pill" onclick="quickSearch('Metformin')"     role="listitem">Metformin</button>
       <button class="pill" onclick="quickSearch('Aspirin')"       role="listitem">Aspirin</button>
       <button class="pill" onclick="quickSearch('Sildenafil')"    role="listitem">Sildenafil</button>
+      <button class="pill" onclick="quickSearch('Ibuprofen')"     role="listitem">Ibuprofen</button>
       <button class="pill" onclick="quickSearch('Thalidomide')"   role="listitem">Thalidomide</button>
-      <button class="pill" onclick="quickSearch('Rapamycin')"     role="listitem">Rapamycin</button>
-      <button class="pill" onclick="quickSearch('Orforglipron')"  role="listitem">Orforglipron</button>
+    </div>
+
+    <!-- Search bar (v2.3.2 Fix) -->
+    <div class="search-wrap">
+      <label for="search-input" class="visually-hidden">Drug molecule name</label>
+      <div class="search-inner">
+        <input
+          type="text"
+          id="search-input"
+          class="search-input"
+          placeholder="e.g. Metformin, Aspirin, Sildenafil…"
+          autocomplete="off"
+          spellcheck="false"
+          aria-label="Drug molecule name"
+        />
+        <button id="voice-btn" class="voice-btn" title="Voice Search" aria-label="Voice SEARCH">🎤</button>
+        <div id="autocomplete-results" class="autocomplete-dropdown hidden"></div>
+      </div>
+      <button id="analyze-btn" class="btn-analyze" aria-label="Analyze molecule">
+        ⚡ Analyze
+      </button>
     </div>
   </div>
 </section>

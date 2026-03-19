@@ -129,6 +129,7 @@ body::before {
   padding: 80px 0 60px;
   text-align: center;
   position: relative;
+  z-index: 1000; /* Ensure search is over content below */
 }
 .hero-tag {
   display: inline-block;
@@ -168,6 +169,7 @@ body::before {
   gap: 12px;
   max-width: 620px;
   margin: 0 auto 24px;
+  position: relative; /* Ground for autocomplete */
 }
 .search-input {
   flex: 1;
@@ -186,6 +188,82 @@ body::before {
   border-color: var(--accent);
   box-shadow: var(--glow);
 }
+.search-inner {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+.voice-btn {
+  position: absolute;
+  right: 12px;
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: all var(--transition);
+  opacity: 0.6;
+}
+.voice-btn:hover { opacity: 1; background: rgba(255,255,255,0.05); }
+.voice-btn.recording {
+  opacity: 1;
+  color: var(--accent3);
+  background: rgba(255, 94, 138, 0.1);
+  box-shadow: 0 0 15px rgba(255, 94, 138, 0.4);
+  animation: pulse-red 1.5s infinite;
+}
+@keyframes pulse-red {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+.autocomplete-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  margin-top: 0;
+  z-index: 20000;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  max-height: 320px;
+  overflow-y: auto;
+  animation: slide-up 0.25s ease-out;
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.autocomplete-dropdown.hidden { display: none; }
+.autocomplete-item {
+  padding: 14px 22px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  color: #1a1a1a;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+}
+.autocomplete-item:last-child { border-bottom: none; }
+.autocomplete-item:hover, .autocomplete-item.active {
+  background: rgba(0, 229, 160, 0.1);
+  color: #000;
+  padding-left: 28px;
+}
+.autocomplete-item.active {
+  border-left: 4px solid var(--accent);
+}
+.autocomplete-item b {
+  color: var(--accent);
+  font-weight: 700;
+}
 .btn-analyze {
   background: linear-gradient(135deg, var(--accent), var(--accent2));
   color: #060810;
@@ -200,8 +278,32 @@ body::before {
   transition: opacity var(--transition), transform var(--transition);
 }
 .btn-analyze:hover  { opacity: 0.88; transform: translateY(-1px); }
-.btn-analyze:active { transform: translateY(0); }
-.btn-analyze:disabled { opacity: 0.5; cursor: not-allowed; }
+/* Popular Searches Widget (v2.2) */
+.popular-searches {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+.popular-searches .pill {
+  padding: 8px 20px;
+  border-radius: 100px;
+  background: linear-gradient(135deg, var(--bg2), var(--bg3));
+  border: 1.5px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.popular-searches .pill:hover {
+  border-color: var(--accent);
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  transform: translateY(-3px);
+  box-shadow: 0 5px 15px rgba(0, 229, 160, 0.3);
+}
 
 /* Quick-search pills */
 .quick-pills { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
