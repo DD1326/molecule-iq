@@ -1,6 +1,7 @@
 /* ============================================================
-   MoleculeIQ — main.js  (FIXED — No API key required)
+   MoleculeIQ v2 — main.js
    AI Avengers · SVCE Blueprints 2026
+   10 real-time APIs · Smart Report Generator
    ============================================================ */
 
 "use strict";
@@ -16,7 +17,9 @@ const errorBanner = document.getElementById("error-banner");
 const errorMsg = document.getElementById("error-msg");
 
 const statPapers = document.getElementById("stat-papers");
+const statPreprints = document.getElementById("stat-preprints");
 const statTrials = document.getElementById("stat-trials");
+const statGlobalTrials = document.getElementById("stat-global-trials");
 const statFDA = document.getElementById("stat-fda");
 const statClasses = document.getElementById("stat-classes");
 
@@ -24,11 +27,15 @@ const papersBody = document.getElementById("papers-body");
 const trialsBody = document.getElementById("trials-body");
 const fdaBody = document.getElementById("fda-body");
 const rxnormBody = document.getElementById("rxnorm-body");
+const preprintsBody = document.getElementById("preprints-body");
+const chemblBody = document.getElementById("chembl-body");
 
 const papersCount = document.getElementById("papers-count");
 const trialsCount = document.getElementById("trials-count");
 const fdaCount = document.getElementById("fda-count");
 const rxnormCount = document.getElementById("rxnorm-count");
+const preprintsCount = document.getElementById("preprints-count");
+const chemblCount = document.getElementById("chembl-count");
 
 const reportMolName = document.getElementById("report-mol-name");
 const reportBody = document.getElementById("report-body");
@@ -42,11 +49,12 @@ function showError(msg) {
   errorMsg.textContent = msg;
 }
 function hideError() { errorBanner.classList.remove("visible"); }
-function hide(el) { el.style.display = "none"; }
-function show(el, display = "block") { el.style.display = display; }
+function hide(el) { if (el) el.style.display = "none"; }
+function show(el, display = "block") { if (el) el.style.display = display; }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 function animateCounter(el, target, duration = 800) {
+  if (!el) return;
   const start = performance.now();
   const update = (now) => {
     const pct = Math.min((now - start) / duration, 1);
@@ -68,6 +76,37 @@ function escHtml(str) {
 
 function emptyState(icon, msg) {
   return `<div class="empty-state"><div class="empty-icon">${icon}</div>${escHtml(msg)}</div>`;
+}
+
+function daysAgo(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d)) return null;
+  const diff = Math.floor((Date.now() - d.getTime()) / 86400000);
+  return diff;
+}
+
+function recencyBadge(dateStr) {
+  const days = daysAgo(dateStr);
+  if (days === null) return "";
+  if (days <= 0) return `<span class="recency-badge recency-today">Today</span>`;
+  if (days <= 7) return `<span class="recency-badge recency-week">${days}d ago</span>`;
+  if (days <= 30) return `<span class="recency-badge recency-month">${days}d ago</span>`;
+  return `<span class="recency-badge recency-old">${days}d ago</span>`;
+}
+
+function sourceBadge(source) {
+  if (!source) return "";
+  const cls = {
+    "PubMed": "src-pubmed",
+    "Europe PMC": "src-europepmc",
+    "Semantic Scholar": "src-semantic",
+    "CrossRef": "src-crossref",
+    "medRxiv preprint": "src-medrxiv",
+    "ClinicalTrials.gov": "src-ctgov",
+    "WHO ICTRP": "src-who",
+  }[source] || "src-other";
+  return `<span class="source-badge ${cls}">${escHtml(source)}</span>`;
 }
 
 // ── Loading steps ────────────────────────────────────────────
@@ -131,18 +170,21 @@ async function startAnalysis() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ molecule }),
-      signal: AbortSignal.timeout(20000),
+      signal: AbortSignal.timeout(45000), // extended for 10 APIs
     });
 
-    await sleep(800); activateStep(1);
-    await sleep(800); activateStep(2);
-    await sleep(800); activateStep(3);
+    // 7 loading steps
+    await sleep(600); activateStep(1);
+    await sleep(600); activateStep(2);
+    await sleep(600); activateStep(3);
+    await sleep(600); activateStep(4);
+    await sleep(600); activateStep(5);
 
     const res = await fetchPromise;
     if (!res.ok) throw new Error(`Server error: ${res.status}`);
     data = await res.json();
 
-    activateStep(4);
+    activateStep(6);
     await sleep(600);
 
   } catch (err) {
@@ -158,16 +200,19 @@ async function startAnalysis() {
   }
 
   // ── Render data cards ──
-  updateStats(data.papers, data.clinical_trials, data.fda_labels, data.rxnorm);
+  renderExperimentalBanner(data.experimental_banner);
+  updateStats(data);
   renderPapers(data.papers || []);
   renderTrials(data.clinical_trials || []);
   renderFDA(data.fda_labels || []);
-  renderRxNorm(data.rxnorm || {});
+  renderRxNorm(data.rxnorm || {}, data.chembl || {});
+  renderPreprints(data.preprints || []);
+  renderChEMBL(data.chembl || {}, data.rxnorm || {});
 
   show(statsSection);
   show(dataSection);
 
-  // ── Generate report from real data (no API key needed!) ──
+  // ── Generate report from real data ──
   show(reportSection);
   reportMolName.textContent = data.molecule || molecule;
   reportBody.innerHTML = `
@@ -177,7 +222,7 @@ async function startAnalysis() {
     </div>`;
   reportSection.scrollIntoView({ behavior: "smooth", block: "start" });
 
-  await sleep(1400); // feels like AI is thinking
+  await sleep(1400);
   generateSmartReport(molecule, data);
 
   markAllStepsDone();
@@ -185,16 +230,50 @@ async function startAnalysis() {
   analyzeBtn.disabled = false;
 }
 
-// ── Stats ────────────────────────────────────────────────────
+// ── Experimental Banner ──────────────────────────────────────
 
-function updateStats(papers, trials, fda, rxnorm) {
-  animateCounter(statPapers, (papers || []).length);
-  animateCounter(statTrials, (trials || []).length);
-  animateCounter(statFDA, (fda || []).length);
-  animateCounter(statClasses, ((rxnorm || {}).drug_classes || []).length);
+function renderExperimentalBanner(bannerData) {
+  const bannerEl = document.getElementById("experimental-banner");
+  if (!bannerData || !bannerData.show) {
+    hide(bannerEl);
+    bannerEl.innerHTML = "";
+    return;
+  }
+
+  bannerEl.innerHTML = `
+    <div class="banner-content">
+      <div class="banner-icon">⚠️</div>
+      <div class="banner-text">
+        <strong>${escHtml(bannerData.title)}</strong><br>
+        ${escHtml(bannerData.message)}
+      </div>
+    </div>
+  `;
+  show(bannerEl);
 }
 
-// ── Render: PubMed Papers ────────────────────────────────────
+// ── Stats ────────────────────────────────────────────────────
+
+function updateStats(data) {
+  const papers = data.papers || [];
+  const preprints = data.preprints || [];
+  const trials = data.clinical_trials || [];
+  const fda = data.fda_labels || [];
+  const rxnorm = data.rxnorm || {};
+  const chembl = data.chembl || {};
+
+  // Count global trials (WHO source)
+  const globalTrials = trials.filter(t => (t.source || "").includes("WHO") || (t.source || "").includes("CTRI")).length;
+
+  animateCounter(statPapers, papers.length);
+  animateCounter(statPreprints, preprints.length);
+  animateCounter(statTrials, trials.length);
+  animateCounter(statGlobalTrials, globalTrials);
+  animateCounter(statFDA, fda.length);
+  animateCounter(statClasses, (rxnorm.drug_classes || []).length + (chembl.chembl_id ? 1 : 0));
+}
+
+// ── Render: Papers (merged from 4 sources) ───────────────────
 
 function renderPapers(papers) {
   papersCount.textContent = papers.length;
@@ -208,13 +287,15 @@ function renderPapers(papers) {
         ${escHtml(p.title)}
       </a>
       <div class="paper-meta">
-        ${escHtml(p.journal)} · ${escHtml(p.year)} · ${escHtml(p.authors)}
-        <br>PMID: ${escHtml(p.pmid)}
+        ${escHtml(p.journal || "")} · ${escHtml(p.year || "")} · ${escHtml(p.authors || "")}
+        ${sourceBadge(p.source)}
+        ${p.date ? recencyBadge(p.date) : ""}
+        ${p.pmid ? `<br>PMID: ${escHtml(p.pmid)}` : ""}
       </div>
     </div>`).join("");
 }
 
-// ── Render: Clinical Trials ──────────────────────────────────
+// ── Render: Clinical Trials (merged USA + Global) ────────────
 
 function renderTrials(trials) {
   trialsCount.textContent = trials.length;
@@ -230,6 +311,7 @@ function renderTrials(trials) {
       <div class="trial-badges">
         <span class="${phaseCss(t.phase)}">${escHtml(t.phase)}</span>
         <span class="${statusCss(t.status)}">${escHtml(t.status)}</span>
+        ${sourceBadge(t.source)}
         ${(t.conditions || []).map(c =>
     `<span class="tag tag-related" style="font-size:0.68rem">${escHtml(c)}</span>`
   ).join("")}
@@ -275,13 +357,17 @@ function renderFDA(labels) {
 
 // ── Render: RxNorm ───────────────────────────────────────────
 
-function renderRxNorm(rxnorm) {
+function renderRxNorm(rxnorm, chembl) {
   const classes = rxnorm.drug_classes || [];
   const related = rxnorm.related_drugs || [];
   rxnormCount.textContent = classes.length;
 
   if (!rxnorm.rxcui && !classes.length && !related.length) {
-    rxnormBody.innerHTML = emptyState("🔗", "Drug not found in RxNorm database");
+    if (chembl && chembl.chembl_id) {
+      rxnormBody.innerHTML = `<div class="empty-state"><div class="empty-icon">🔗</div>Not in RxNorm — see ChEMBL card below</div>`;
+    } else {
+      rxnormBody.innerHTML = emptyState("🔗", "Drug not found in RxNorm database");
+    }
     return;
   }
 
@@ -308,21 +394,110 @@ function renderRxNorm(rxnorm) {
   rxnormBody.innerHTML = html;
 }
 
+// ── Render: Preprints (bioRxiv/medRxiv) ──────────────────────
+
+function renderPreprints(preprints) {
+  preprintsCount.textContent = preprints.length;
+  if (!preprints.length) {
+    preprintsBody.innerHTML = emptyState("📰", "No preprints found in the last year");
+    return;
+  }
+  preprintsBody.innerHTML = preprints.map(p => `
+    <div class="paper-item">
+      <a href="${escHtml(p.url)}" target="_blank" rel="noopener" class="paper-title">
+        ${escHtml(p.title)}
+      </a>
+      <div class="paper-meta">
+        ${escHtml(p.authors || "")}
+        ${sourceBadge(p.source)}
+        ${recencyBadge(p.date)}
+      </div>
+    </div>`).join("");
+}
+
+// ── Render: ChEMBL Compound Profile ──────────────────────────
+
+function renderChEMBL(chembl, rxnorm) {
+  const chemblCard = document.getElementById("chembl-card");
+
+  if (!chembl || !chembl.chembl_id) {
+    if (rxnorm && rxnorm.rxcui) {
+      // RxNorm has data, ChEMBL not needed — hide card
+      chemblCount.textContent = "—";
+      chemblBody.innerHTML = emptyState("⚗️", "FDA-approved — see RxNorm card above");
+    } else {
+      chemblCount.textContent = "0";
+      chemblBody.innerHTML = emptyState("⚗️", "Compound not found in ChEMBL");
+    }
+    return;
+  }
+
+  chemblCount.textContent = "1";
+
+  // Phase progress bar
+  const maxPhase = chembl.max_phase || 0;
+  const phases = [1, 2, 3, 4];
+  const progressHtml = `
+    <div class="phase-progress">
+      <div class="phase-step ${maxPhase >= 1 ? "phase-active" : ""}">
+        <div class="phase-dot"></div>
+        <div class="phase-text">Phase 1</div>
+      </div>
+      <div class="phase-line ${maxPhase >= 2 ? "phase-active" : ""}"></div>
+      <div class="phase-step ${maxPhase >= 2 ? "phase-active" : ""}">
+        <div class="phase-dot"></div>
+        <div class="phase-text">Phase 2</div>
+      </div>
+      <div class="phase-line ${maxPhase >= 3 ? "phase-active" : ""}"></div>
+      <div class="phase-step ${maxPhase >= 3 ? "phase-active" : ""}">
+        <div class="phase-dot"></div>
+        <div class="phase-text">Phase 3</div>
+      </div>
+      <div class="phase-line ${maxPhase >= 4 ? "phase-active" : ""}"></div>
+      <div class="phase-step ${maxPhase >= 4 ? "phase-active" : ""}">
+        <div class="phase-dot"></div>
+        <div class="phase-text">Approved</div>
+      </div>
+    </div>`;
+
+  chemblBody.innerHTML = `
+    <div class="chembl-profile">
+      <div class="chembl-header">
+        <span class="chembl-id">${escHtml(chembl.chembl_id)}</span>
+        <span class="chembl-phase-label">${escHtml(chembl.phase_label)}</span>
+      </div>
+      ${progressHtml}
+      <div class="chembl-details">
+        <div class="chembl-row"><span class="chembl-key">Name</span><span class="chembl-val">${escHtml(chembl.name)}</span></div>
+        <div class="chembl-row"><span class="chembl-key">Type</span><span class="chembl-val">${escHtml(chembl.type)}</span></div>
+        ${chembl.formula ? `<div class="chembl-row"><span class="chembl-key">Formula</span><span class="chembl-val chembl-formula">${escHtml(chembl.formula)}</span></div>` : ""}
+        ${chembl.molecular_weight ? `<div class="chembl-row"><span class="chembl-key">Mol. Weight</span><span class="chembl-val">${escHtml(chembl.molecular_weight)}</span></div>` : ""}
+        <div class="chembl-row"><span class="chembl-key">Oral</span><span class="chembl-val">${escHtml(chembl.oral)}</span></div>
+      </div>
+    </div>`;
+}
+
 // ════════════════════════════════════════════════════════════
-//  SMART REPORT GENERATOR
-//  Builds a full 7-section Innovation Report from real data.
-//  Zero API cost. Works 100% offline after Flask fetches data.
+//  SMART REPORT GENERATOR v2
+//  Now references all 10 data sources.
 // ════════════════════════════════════════════════════════════
 
 function generateSmartReport(molecule, data) {
   const papers = (data.papers || []).filter(p => p.title);
+  const preprints = (data.preprints || []).filter(p => p.title);
   const trials = (data.clinical_trials || []).filter(t => t.title);
   const fda = data.fda_labels || [];
   const rxnorm = data.rxnorm || {};
+  const chembl = data.chembl || {};
+  const dailymed = data.dailymed || [];
+  const ae = data.adverse_events || [];
 
   // ── Facts extracted from real data ──
   const paperCount = papers.length;
+  const preprintCount = preprints.length;
   const trialCount = trials.length;
+  const globalTrials = trials.filter(t => (t.source || "").includes("WHO") || (t.source || "").includes("CTRI")).length;
+  const usaTrials = trialCount - globalTrials;
   const completedTrials = trials.filter(t => (t.status || "").toUpperCase().includes("COMPLET")).length;
   const recruitingTrials = trials.filter(t => (t.status || "").toUpperCase().includes("RECRUIT")).length;
   const activeTrials = trials.filter(t => (t.status || "").toUpperCase().includes("ACTIVE")).length;
@@ -337,7 +512,7 @@ function generateSmartReport(molecule, data) {
 
   const classes = rxnorm.drug_classes || [];
   const related = rxnorm.related_drugs || [];
-  const classStr = classes.slice(0, 4).join(", ") || "investigational compound";
+  const classStr = classes.length ? classes.slice(0, 4).join(", ") : (chembl.type || "investigational compound");
   const relatedStr = related.slice(0, 5).join(", ") || "none identified";
 
   const brandName = fda[0]?.brand_name || molecule;
@@ -350,46 +525,72 @@ function generateSmartReport(molecule, data) {
   const recentYears = [...new Set(papers.map(p => p.year).filter(Boolean))].sort().reverse().slice(0, 3);
   const yearStr = recentYears.length ? recentYears.join(", ") : "recent years";
 
+  // Data sources string
+  const paperSources = [...new Set(papers.map(p => p.source).filter(Boolean))];
+  const sourcesStr = paperSources.length ? paperSources.join(", ") : "PubMed";
+
   // Repurposing score (0-10) from real data volume
-  const score = Math.min(10, paperCount * 0.8 + trialCount * 0.8 + (classes.length > 0 ? 1.5 : 0) + (fda.length > 0 ? 0.7 : 0));
+  const score = Math.min(10, paperCount * 0.5 + preprintCount * 0.6 + trialCount * 0.5 + (classes.length > 0 ? 1.5 : 0) + (fda.length > 0 ? 0.7 : 0) + (chembl.chembl_id ? 1.0 : 0));
   const scoreLabel = score >= 7 ? "High" : score >= 4 ? "Moderate" : "Emerging";
   const scoreNum = score.toFixed(1);
 
-  // ── 7-section report ──
-  const report = `## 1. Executive Summary
+  // ChEMBL info
+  const chemblStr = chembl.chembl_id
+    ? `ChEMBL ID: **${chembl.chembl_id}** | Type: ${chembl.type} | Clinical Phase: **${chembl.phase_label}** | Formula: ${chembl.formula || "N/A"} | Oral: ${chembl.oral}`
+    : "No ChEMBL compound profile available.";
 
-**${molecule}** is a **${classStr}** agent with a **${scoreLabel} repurposing potential score of ${scoreNum}/10**, derived from real-time analysis of ${paperCount} PubMed publications, ${trialCount} registered clinical trials, and ${fda.length} FDA label record(s). The compound's established regulatory history and documented pharmacokinetic profile offer significant advantages over novel molecular entities in the repurposing pathway. Scientific interest documented across ${yearStr} confirms sustained research momentum across ${conditionStr}.
+  const dailymedStr = dailymed.length > 0 
+    ? dailymed.map(d => `- [${d.title}](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=${d.setid}) (Published: ${d.published_date})`).join("\n")
+    : "No structured dosing labels available on DailyMed for this query.";
+
+  const aeStr = ae.length > 0
+    ? ae.map(a => `- **${a.term}**: ${a.count} reported cases`).join("\n")
+    : "No specific adverse events flagged in openFDA FAERS.";
+
+  // ── 7-section report ──
+  const report = `> **⚠️ MEDICAL DISCLAIMER:** This report is for research purposes only. Always consult a licensed physician before making any medical decisions. Clinical data indicates historical trends, not personal recommendations.
+
+## 1. Executive Summary
+
+**${molecule}** is a **${classStr}** agent with a **${scoreLabel} repurposing potential score of ${scoreNum}/10**, derived from real-time analysis of ${paperCount} publications (via ${sourcesStr}), ${preprintCount} preprints (medRxiv), ${trialCount} registered clinical trials (${usaTrials} USA + ${globalTrials} global), and ${fda.length} FDA label record(s). ${chembl.chembl_id ? `ChEMBL classifies it as a **${chembl.type}** at **${chembl.phase_label}** stage.` : ""} Scientific interest documented across ${yearStr} confirms sustained research momentum across ${conditionStr}.
 
 ---
 
-## 2. Current Approved Uses
+## 2. Current Approved Uses (& Official FDA Dosing)
 
 ${fda.length > 0
-      ? `Per **openFDA** records, **${brandName}** (generic: **${genericName}**) is approved for **${route}** administration, manufactured by **${manufacturer}**.\n\n${indications ? `> ${indications.slice(0, 450)}…` : "Full indications available in the FDA label card above."}`
-      : `No FDA label was found in openFDA for **${molecule}**. This may indicate the compound is investigational, uses an alternate generic name, or is not yet approved. However, **${trialCount} ClinicalTrials.gov registrations** confirm active clinical evaluation.`}
+      ? `Per **openFDA** records, research suggests **${brandName}** (generic: **${genericName}**) is approved for **${route}** administration, manufactured by **${manufacturer}**.\n\n${indications ? `> ${indications.slice(0, 450)}…` : "Full indications available in the FDA label card above."}`
+      : `No FDA label was found in openFDA for **${molecule}**. This may indicate the compound is investigational, uses an alternate generic name, or is not yet approved.`}
+
+${chembl.chembl_id && !fda.length ? `**ChEMBL Compound Profile:**\n${chemblStr}` : ""}
+
+**Official FDA Dosing References (DailyMed):**
+${dailymedStr}
 
 ---
 
 ## 3. Repurposing Opportunities
 
-ClinicalTrials.gov data identifies **${trialCount} studies** investigating ${molecule} across: **${conditionStr}**.
+Data from ${paperSources.length} publication sources and ClinicalTrials.gov identifies **${trialCount} studies** investigating ${molecule} across: **${conditionStr}**.
+
+${preprintCount > 0 ? `**${preprintCount} medRxiv preprints** provide cutting-edge, pre-peer-review evidence of active research interest — some published within the last week.` : ""}
 
 ${latestPaper
-      ? `The most recent PubMed record — *"${latestPaper.title}"* (${latestPaper.year}, ${latestPaper.journal}) — represents the current scientific frontier for this molecule.`
-      : `PubMed records confirm ongoing research interest, though literature volume suggests an early-stage opportunity.`}
+      ? `The most recent publication — *"${latestPaper.title}"* (${latestPaper.year}, ${latestPaper.source || "PubMed"}) — represents the current scientific frontier for this molecule.`
+      : `Publication records confirm ongoing research interest, though literature volume suggests an early-stage opportunity.`}
 
-As a **${classStr}** compound, ${molecule} shares mechanistic properties with related agents (${relatedStr}), providing cross-indication precedent. Priority repurposing candidates include:
+As a **${classStr}** compound, clinical data indicates ${molecule} shares mechanistic properties with related agents (${relatedStr}), providing cross-indication precedent. Research suggests priority repurposing candidates include:
 
 - Conditions sharing molecular targets with the primary indication
-- Diseases where related drugs have demonstrated efficacy with inferior safety profiles  
+- Diseases where related drugs have demonstrated efficacy
 - Combination therapy regimens requiring complementary mechanistic activity
-- Rare diseases qualifying for Orphan Drug Designation (fewer than 200,000 US patients)
+- Rare diseases qualifying for Orphan Drug Designation
 
 ---
 
 ## 4. Clinical Development Status
 
-**${trialCount} clinical studies** are registered on ClinicalTrials.gov for ${molecule}:
+**${trialCount} clinical studies** are registered across registries for ${molecule}:
 
 | Status | Count |
 |---|---|
@@ -400,6 +601,7 @@ As a **${classStr}** compound, ${molecule} shares mechanistic properties with re
 | ⬜ Other/Unknown | ${unknownTrials > 0 ? unknownTrials : 0} |
 
 **Phases covered:** ${phaseStr}
+**Registry coverage:** ${usaTrials} USA (ClinicalTrials.gov) · ${globalTrials} Global (WHO ICTRP)
 
 ${recruitingTrials > 0
       ? `**Opportunity:** ${recruitingTrials} actively recruiting trial(s) offer partnership and co-investment possibilities with data-sharing agreements.`
@@ -424,14 +626,17 @@ ${molecule} qualifies for the **FDA 505(b)(2) regulatory pathway**, leveraging e
 
 ## 6. Risk Assessment
 
-**🔬 Technical Risks**
+**🔬 Technical & Safety Risks**
 - Off-target effects in new patient populations may require additional Phase I safety studies (+12–24 months)
-- PK/PD profile may differ in new indications, requiring dose-finding studies
-${terminatedTrials > 0 ? `- **⚠️ ${terminatedTrials} terminated trial(s)** require root-cause analysis before investment decisions` : "- No terminated trials detected — existing safety signals appear acceptable"}
+- PK/PD profile may differ in new indications
+${terminatedTrials > 0 ? `- **⚠️ ${terminatedTrials} terminated trial(s)** require root-cause analysis` : "- No terminated trials detected based on available search data."}
+
+**Top Reported Adverse Events (openFDA FAERS):**
+${aeStr}
 
 **💼 Commercial Risks**
 - Generic availability limits pricing power; strong IP strategy is essential before repurposing investment
-- ${paperCount >= 5 ? `High publication volume (${paperCount} papers) signals competitive awareness — first-mover speed is critical` : `Low literature volume may reflect early-stage opportunity or limited scientific interest`}
+- ${paperCount >= 5 ? `High publication volume (${paperCount} papers across ${paperSources.length} databases) signals competitive awareness — first-mover speed is critical` : `Low literature volume may reflect early-stage opportunity or limited scientific interest`}
 
 **⚖️ Regulatory Risks**
 - Extrapolating existing safety data to new patient populations requires FDA validation
@@ -441,21 +646,23 @@ ${terminatedTrials > 0 ? `- **⚠️ ${terminatedTrials} terminated trial(s)** r
 
 ## 7. Recommended Next Steps
 
-1. **This week — IP filing:** File provisional method-of-use patent applications for the top 2–3 repurposing indications identified in the ${trialCount} trial registrations before competitors identify the same public signals
+Research suggests the following clinical and strategic timeline for further exploration:
 
-2. **Month 1 — Evidence synthesis:** Commission systematic review and meta-analysis of all ${paperCount} PubMed publications to score and rank repurposing candidates by evidence strength
+1. **This week — IP filing:** Research method-of-use patent landscapes for the top repurposing indications identified in the ${trialCount} trial registrations.
 
-3. **Month 2 — Regulatory strategy:** Request FDA Type B Pre-IND meeting to confirm 505(b)(2) eligibility and define the minimum clinical package required for approval
+2. **Month 1 — Evidence synthesis:** Commission systematic review and meta-analysis of the ${paperCount} publications (from ${sourcesStr}) and ${preprintCount} preprints to score and rank candidates by evidence strength.
 
-4. **Month 3 — Trial data access:** Approach principal investigators of the ${completedTrials} completed trial(s) for individual patient data access and potential publication partnerships
+3. **Month 2 — Regulatory strategy:** Draft FDA Type B Pre-IND meeting briefs to explore 505(b)(2) eligibility and clinical package requirements.
 
-5. **Month 4–6 — Proof of concept:** Design a lean Phase II study for the highest-ranked indication, using the existing safety dossier to minimise study scope and cost
+4. **Month 3 — Trial data access:** Analyze publicly available endpoints of the ${completedTrials} completed trial(s) for individual patient data access.
 
-6. **Ongoing — Competitive surveillance:** Configure automated alerts for new ClinicalTrials.gov registrations and PubMed publications mentioning ${molecule} to monitor competitor activity in real time
+5. **Month 4–6 — Proof of concept:** Clinical data indicates a lean Phase II study for the highest-ranked indication could be explored.
+
+6. **Ongoing — Surveillance:** Monitor for new ClinicalTrials.gov registrations, WHO ICTRP updates, and medRxiv preprints mentioning ${molecule}.
 
 ---
 
-*Report synthesised by **MoleculeIQ** · Sources: PubMed (${paperCount} papers) · ClinicalTrials.gov (${trialCount} studies) · openFDA (${fda.length} label records) · RxNorm/NLM · All sources free US government databases · **AI Avengers · SVCE · Blueprints 2026***`;
+*Report synthesised by **MoleculeIQ v2** · Sources: PubMed · Europe PMC · Semantic Scholar · CrossRef · medRxiv (${preprintCount} preprints) · ClinicalTrials.gov + WHO ICTRP (${trialCount} trials) · openFDA (${fda.length} labels) · RxNorm · ChEMBL · DailyMed · All sources free · **AI Avengers · SVCE · Blueprints 2026***`;
 
   renderReport(report);
 }
@@ -487,7 +694,7 @@ function simpleMarkdown(md) {
     .replace(/(<tr>[\s\S]+?<\/tr>)+/g, "<table>$&</table>")
     .replace(/^\s*[-*] (.+)$/gm, "<li>$1</li>")
     .replace(/^\d+\. (.+)$/gm, "<li>$1</li>")
-    .replace(/(<li>[\s\S]+?<\/li>)+/g, "<ul>$&</ul>")
+    .replace(/((<li>[\s\S]+?<\/li>)(?:\n)?)+/g, "<ul>$&</ul>")
     .replace(/^---$/gm, "<hr/>")
     .replace(/\n{2,}/g, "</p><p>")
     .replace(/^(?!<[htubliop])(.+)$/gm, "<p>$1</p>")

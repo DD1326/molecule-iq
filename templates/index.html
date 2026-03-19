@@ -52,8 +52,8 @@
     <div class="hero-tag">Autonomous Research Orchestrator</div>
     <h1>Discover New Lives for<br>Existing Molecules</h1>
     <p class="hero-sub">
-      Enter any drug molecule name. MoleculeIQ queries 4 real government databases simultaneously,
-      then uses Claude AI to synthesise a structured Innovation Opportunity Report — in under 30 seconds.
+      Enter any drug molecule name. MoleculeIQ queries 10 real databases simultaneously,
+      then synthesises a structured Innovation Opportunity Report — in under 30 seconds.
     </p>
 
     <!-- Search bar -->
@@ -75,11 +75,12 @@
 
     <!-- Quick pills -->
     <div class="quick-pills" role="list" aria-label="Quick search molecules">
-      <button class="pill" onclick="quickSearch('Metformin')"    role="listitem">Metformin</button>
-      <button class="pill" onclick="quickSearch('Aspirin')"      role="listitem">Aspirin</button>
-      <button class="pill" onclick="quickSearch('Sildenafil')"   role="listitem">Sildenafil</button>
-      <button class="pill" onclick="quickSearch('Thalidomide')"  role="listitem">Thalidomide</button>
-      <button class="pill" onclick="quickSearch('Rapamycin')"    role="listitem">Rapamycin</button>
+      <button class="pill" onclick="quickSearch('Metformin')"     role="listitem">Metformin</button>
+      <button class="pill" onclick="quickSearch('Aspirin')"       role="listitem">Aspirin</button>
+      <button class="pill" onclick="quickSearch('Sildenafil')"    role="listitem">Sildenafil</button>
+      <button class="pill" onclick="quickSearch('Thalidomide')"   role="listitem">Thalidomide</button>
+      <button class="pill" onclick="quickSearch('Rapamycin')"     role="listitem">Rapamycin</button>
+      <button class="pill" onclick="quickSearch('Orforglipron')"  role="listitem">Orforglipron</button>
     </div>
   </div>
 </section>
@@ -100,7 +101,7 @@
       </div>
       <div class="step-item">
         <div class="step-num">3</div>
-        <div class="step-label">Claude AI<br>Synthesis</div>
+        <div class="step-label">Smart Algorithm<br>Synthesis</div>
       </div>
       <div class="step-item">
         <div class="step-num">4</div>
@@ -125,7 +126,7 @@
 <section id="loading-section" aria-live="polite" aria-label="Analysis in progress">
   <div class="container">
     <h2 class="loading-title">Analysing Molecule…</h2>
-    <p class="loading-subtitle">Querying government databases and AI engine simultaneously</p>
+    <p class="loading-subtitle">Querying 10 databases & synthesising report simultaneously</p>
 
     <!-- DNA Helix animation -->
     <div class="dna-wrap" aria-hidden="true">
@@ -155,11 +156,19 @@
       </div>
       <div class="loading-step" data-icon="○" data-active="⟳">
         <span class="step-icon">○</span>
-        <span>Fetching RxNorm classifications…</span>
+        <span>Fetching RxNorm & ChEMBL classifications…</span>
       </div>
-      <div class="loading-step" data-icon="○" data-active="🤖">
+      <div class="loading-step" data-icon="○" data-active="⟳">
         <span class="step-icon">○</span>
-        <span>AI synthesising innovation report…</span>
+        <span>Scanning global preprint servers…</span>
+      </div>
+      <div class="loading-step" data-icon="○" data-active="⟳">
+        <span class="step-icon">○</span>
+        <span>Querying international trial registries…</span>
+      </div>
+      <div class="loading-step" data-icon="○" data-active="⚙️">
+        <span class="step-icon">○</span>
+        <span>Algorithm synthesising innovation report…</span>
       </div>
     </div>
   </div>
@@ -170,14 +179,26 @@
      ============================================================ -->
 <section id="stats-section" aria-label="Results overview">
   <div class="container">
-    <div class="stats-grid">
+    <div id="experimental-banner" class="banner-experimental" style="display:none;" role="alert">
+      <!-- Injected by JS -->
+    </div>
+
+    <div class="stats-grid stats-grid-6">
       <div class="stat-item">
         <span class="stat-num" id="stat-papers">0</span>
         <span class="stat-label">Research Papers</span>
       </div>
       <div class="stat-item">
+        <span class="stat-num" id="stat-preprints">0</span>
+        <span class="stat-label">Preprints</span>
+      </div>
+      <div class="stat-item">
         <span class="stat-num" id="stat-trials">0</span>
         <span class="stat-label">Clinical Trials</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-num" id="stat-global-trials">0</span>
+        <span class="stat-label">Global Trials</span>
       </div>
       <div class="stat-item">
         <span class="stat-num" id="stat-fda">0</span>
@@ -247,7 +268,36 @@
         </div>
       </div>
 
-    </div><!-- / data-grid -->
+    </div><!-- / data-grid row 1 -->
+
+    <!-- Row 2: Preprints + ChEMBL -->
+    <div class="data-grid" style="margin-top:20px">
+
+      <!-- Preprints Card -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-icon">📰</span>
+          <span class="card-title">Today's Research (medRxiv)</span>
+          <span class="card-count" id="preprints-count">0</span>
+        </div>
+        <div class="card-body" id="preprints-body">
+          <!-- populated by JS -->
+        </div>
+      </div>
+
+      <!-- ChEMBL Card -->
+      <div class="card" id="chembl-card">
+        <div class="card-header">
+          <span class="card-icon">⚗️</span>
+          <span class="card-title">Compound Profile (ChEMBL)</span>
+          <span class="card-count" id="chembl-count">0</span>
+        </div>
+        <div class="card-body" id="chembl-body">
+          <!-- populated by JS -->
+        </div>
+      </div>
+
+    </div><!-- / data-grid row 2 -->
   </div>
 </section>
 
@@ -262,7 +312,7 @@
           Innovation Report:
           <span class="report-molecule-name" id="report-mol-name"></span>
         </h2>
-        <div class="sub">Generated by Claude AI · Powered by real government data</div>
+        <div class="sub">Generated by Smart Report Generator · Powered by real data</div>
       </div>
       <button class="btn-export" onclick="exportReport()" aria-label="Export report as PDF">
         📄 Export PDF
@@ -289,7 +339,12 @@
       <span>ClinicalTrials.gov v2</span> ·
       <span>openFDA</span> ·
       <span>RxNav / NLM</span> ·
-      <span>Anthropic Claude</span>
+      <span>bioRxiv</span> ·
+      <span>Europe PMC</span> ·
+      <span>ChEMBL</span> ·
+      <span>Semantic Scholar</span> ·
+      <span>CrossRef</span> ·
+      <span>WHO ICTRP</span>
     </div>
   </div>
 </footer>

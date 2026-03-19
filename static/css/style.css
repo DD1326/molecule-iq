@@ -649,7 +649,6 @@ body::before {
   padding: 14px 20px;
   margin: 24px 0;
   color: var(--accent3);
-  display: flex;
   align-items: center;
   gap: 10px;
   font-size: 0.9rem;
@@ -683,13 +682,14 @@ body::before {
 @media (max-width: 768px) {
   .data-grid { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .stats-grid-6 { grid-template-columns: repeat(3, 1fr); }
   .steps-row  { grid-template-columns: repeat(2, 1fr); }
   .step-item:nth-child(2)::after { display: none; }
   .search-wrap { flex-direction: column; }
   .report-body { padding: 24px 20px; }
 }
 @media (max-width: 480px) {
-  .stats-grid { grid-template-columns: 1fr; }
+  .stats-grid, .stats-grid-6 { grid-template-columns: repeat(2, 1fr); }
   .steps-row  { grid-template-columns: 1fr; }
   .step-item::after { display: none !important; }
 }
@@ -707,4 +707,175 @@ body::before {
   .report-body h2 { color: #007a55; border-bottom-color: #007a55; }
   .report-body h3 { color: #0077cc; }
   .report-body strong { color: #b8600a; }
+}
+
+/* ====================================================
+   EXPERIMENTAL BANNER
+   ==================================================== */
+.banner-experimental {
+  background: rgba(255, 208, 96, 0.15);
+  border: 1px solid rgba(255, 208, 96, 0.3);
+  border-radius: var(--radius);
+  margin-bottom: 24px;
+  padding: 16px 20px;
+}
+.banner-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.banner-icon {
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+.banner-text {
+  font-size: 0.9rem;
+  color: var(--text);
+}
+.banner-text strong {
+  color: #ffd060;
+  font-size: 1rem;
+}
+
+/* ====================================================
+   STATS GRID — 6 columns
+   ==================================================== */
+.stats-grid-6 {
+  grid-template-columns: repeat(6, 1fr);
+}
+
+/* ====================================================
+   SOURCE BADGES
+   ==================================================== */
+.source-badge {
+  display: inline-block;
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.src-pubmed      { background: rgba(0,149,255,0.15); color: #4ac2ff; }
+.src-europepmc   { background: rgba(255,208,96,0.15); color: #ffd060; }
+.src-semantic    { background: rgba(168,85,247,0.15); color: #c084fc; }
+.src-crossref    { background: rgba(0,229,160,0.15); color: #00e5a0; }
+.src-medrxiv     { background: rgba(255,94,138,0.15); color: #ff5e8a; }
+.src-ctgov       { background: rgba(0,149,255,0.15); color: #4ac2ff; }
+.src-who         { background: rgba(255,208,96,0.15); color: #ffd060; }
+.src-other       { background: rgba(122,138,170,0.15); color: #7a8aaa; }
+
+/* ====================================================
+   RECENCY BADGES
+   ==================================================== */
+.recency-badge {
+  display: inline-block;
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.recency-today { background: rgba(0,229,160,0.2); color: #00e5a0; }
+.recency-week  { background: rgba(255,208,96,0.2); color: #ffd060; }
+.recency-month { background: rgba(255,155,80,0.15); color: #ff9b50; }
+.recency-old   { background: rgba(122,138,170,0.1); color: #7a8aaa; }
+
+/* ====================================================
+   CHEMBL COMPOUND PROFILE
+   ==================================================== */
+.chembl-profile {
+  padding: 6px 0;
+}
+.chembl-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.chembl-id {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--accent2);
+  background: rgba(0,149,255,0.1);
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+}
+.chembl-phase-label {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--accent);
+}
+.chembl-details {
+  margin-top: 14px;
+}
+.chembl-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.82rem;
+}
+.chembl-row:last-child { border-bottom: none; }
+.chembl-key {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.chembl-val {
+  color: var(--text);
+  font-weight: 600;
+}
+.chembl-formula {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+/* ── Phase Progress Bar ── */
+.phase-progress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin: 10px 0;
+}
+.phase-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  z-index: 1;
+}
+.phase-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--bg3);
+  border: 2px solid var(--text-muted);
+  transition: all 0.3s;
+}
+.phase-step.phase-active .phase-dot {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(0,229,160,0.4);
+}
+.phase-text {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.phase-step.phase-active .phase-text {
+  color: var(--accent);
+}
+.phase-line {
+  width: 40px;
+  height: 3px;
+  background: var(--bg3);
+  border-radius: 2px;
+  margin-bottom: 18px;
+}
+.phase-line.phase-active {
+  background: var(--accent);
 }
