@@ -556,14 +556,8 @@ function renderChEMBL(chembl, rxnorm) {
   const chemblCard = document.getElementById("chembl-card");
 
   if (!chembl || !chembl.chembl_id) {
-    if (rxnorm && rxnorm.rxcui) {
-      // RxNorm has data, ChEMBL not needed — hide card
-      chemblCount.textContent = "—";
-      chemblBody.innerHTML = emptyState("⚗️", "FDA-approved — see RxNorm card above");
-    } else {
-      chemblCount.textContent = "0";
-      chemblBody.innerHTML = emptyState("⚗️", "Compound not found in ChEMBL");
-    }
+    chemblCount.textContent = "0";
+    chemblBody.innerHTML = emptyState("⚗️", "Compound not found in ChEMBL database");
     return;
   }
 
@@ -571,7 +565,6 @@ function renderChEMBL(chembl, rxnorm) {
 
   // Phase progress bar
   const maxPhase = chembl.max_phase || 0;
-  const phases = [1, 2, 3, 4];
   const progressHtml = `
     <div class="phase-progress">
       <div class="phase-step ${maxPhase >= 1 ? "phase-active" : ""}">

@@ -612,10 +612,9 @@ def _get_highest_phase_from_trials(trials: list) -> str:
 
 
 def check_if_experimental(papers, fda, rxnorm, trials, chembl) -> dict:
-    """FIXED: Reads phase from trials data (always available)."""
+    """FIXED: Robust detection for molecules that have RxCUIs but are actually experimental."""
     is_experimental = (
         len(fda) == 0 and
-        (not rxnorm or not rxnorm.get("rxcui")) and
         (len(trials) > 0 or (chembl and chembl.get("max_phase", 0) > 0))
     )
 
@@ -894,10 +893,8 @@ def analyze():
         crossref = f_cr.result() or []
         who_trials = f_who.result() or []
 
-    # ChEMBL fallback — only call if RxNorm returned nothing
-    chembl = {}
-    if not rxnorm.get("rxcui"):
-        chembl = fetch_chembl(molecule)
+    # ChEMBL data — fetch to get structural properties & clinical phase
+    chembl = fetch_chembl(molecule)
 
     # ── Merge papers: PubMed + Europe PMC + Semantic Scholar + CrossRef ──
     # Tag PubMed papers with source
