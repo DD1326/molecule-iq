@@ -151,6 +151,8 @@ function quickSearch(molecule) {
 // ── Main analysis flow ───────────────────────────────────────
 
 async function startAnalysis() {
+  if (analyzeBtn.disabled) return; // v2.3.4 Execution Guard
+
   const molecule = searchInput.value.trim();
   if (!molecule) { searchInput.focus(); return; }
 
@@ -161,6 +163,7 @@ async function startAnalysis() {
   hide(reportSection);
   show(loadingSection);
   analyzeBtn.disabled = true;
+  hideAutocomplete(); // Ensure cleanup
   resetLoadingSteps();
 
   activateStep(0);
@@ -260,19 +263,21 @@ searchInput.addEventListener("focus", () => {
 // v2.3: Keyboard Navigation
 searchInput.addEventListener("keydown", (e) => {
   const items = autocompleteDropdown.querySelectorAll(".autocomplete-item");
-  if (!items.length) return;
 
   if (e.key === "ArrowDown") {
+    if (!items.length) return;
     e.preventDefault();
     activeIndex = (activeIndex + 1) % items.length;
     updateActiveItem(items);
   } else if (e.key === "ArrowUp") {
+    if (!items.length) return;
     e.preventDefault();
     activeIndex = (activeIndex - 1 + items.length) % items.length;
     updateActiveItem(items);
   } else if (e.key === "Enter") {
-    if (activeIndex > -1) {
+    if (activeIndex > -1 && items.length) {
       e.preventDefault();
+      e.stopImmediatePropagation(); // Prevent line 841 from firing
       selectSuggestion(suggestionsList[activeIndex]);
     }
   } else if (e.key === "Escape") {
@@ -321,7 +326,7 @@ function hideAutocomplete() {
   activeIndex = -1;
 }
 
-window.selectSuggestion = function(val) {
+window.selectSuggestion = function (val) {
   searchInput.value = val;
   hideAutocomplete();
   startAnalysis();
@@ -669,7 +674,7 @@ function generateSmartReport(molecule, data) {
     ? `ChEMBL ID: **${chembl.chembl_id}** | Type: ${chembl.type} | Clinical Phase: **${chembl.phase_label}** | Formula: ${chembl.formula || "N/A"} | Oral: ${chembl.oral}`
     : "No ChEMBL compound profile available.";
 
-  const dailymedStr = dailymed.length > 0 
+  const dailymedStr = dailymed.length > 0
     ? dailymed.map(d => `- [${d.title}](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=${d.setid}) (Published: ${d.published_date})`).join("\n")
     : "No structured dosing labels available on DailyMed for this query.";
 

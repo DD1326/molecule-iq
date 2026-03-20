@@ -1,357 +1,354 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MoleculeIQ — Intelligent Drug Repurposing Platform</title>
-  <meta name="description" content="Autonomous drug repurposing research powered by real government APIs and AI. Discover new therapeutic uses for existing molecules in under 30 seconds." />
+  <meta name="description"
+    content="Autonomous drug repurposing research powered by real government APIs and AI. Discover new therapeutic uses for existing molecules in under 30 seconds." />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
   <!-- marked.js for markdown rendering -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
+
 <body>
 
-<!-- ── Background orbs ── -->
-<div class="orb orb-blue"  aria-hidden="true"></div>
-<div class="orb orb-green" aria-hidden="true"></div>
+  <!-- ── Background orbs ── -->
+  <div class="orb orb-blue" aria-hidden="true"></div>
+  <div class="orb orb-green" aria-hidden="true"></div>
 
-<!-- ============================================================
+  <!-- ============================================================
      HEADER
      ============================================================ -->
-<header class="site-header" role="banner">
-  <div class="container">
-    <div class="header-inner">
-      <a href="/" class="logo" aria-label="MoleculeIQ home">
-        <!-- SVG molecule icon -->
-        <svg class="logo-icon" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <circle cx="18" cy="18" r="4.5" fill="#00e5a0"/>
-          <circle cx="7"  cy="10" r="3"   fill="#0095ff"/>
-          <circle cx="29" cy="10" r="3"   fill="#0095ff"/>
-          <circle cx="7"  cy="26" r="3"   fill="#ff5e8a"/>
-          <circle cx="29" cy="26" r="3"   fill="#ffd060"/>
-          <line x1="10.5" y1="12.1" x2="15.2" y2="15.5" stroke="#00e5a0" stroke-width="1.5" stroke-linecap="round"/>
-          <line x1="25.5" y1="12.1" x2="20.8" y2="15.5" stroke="#0095ff" stroke-width="1.5" stroke-linecap="round"/>
-          <line x1="10.5" y1="23.9" x2="15.2" y2="20.5" stroke="#ff5e8a" stroke-width="1.5" stroke-linecap="round"/>
-          <line x1="25.5" y1="23.9" x2="20.8" y2="20.5" stroke="#ffd060" stroke-width="1.5" stroke-linecap="round"/>
-        </svg>
-        <span class="logo-name">MoleculeIQ</span>
-      </a>
-      <div class="header-badges">
-        <span class="badge badge-green">AI Avengers</span>
-        <span class="badge badge-blue">SVCE · Blueprints 2026</span>
+  <header class="site-header" role="banner">
+    <div class="container">
+      <div class="header-inner">
+        <a href="/" class="logo" aria-label="MoleculeIQ home">
+          <!-- SVG molecule icon -->
+          <svg class="logo-icon" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <circle cx="18" cy="18" r="4.5" fill="#00e5a0" />
+            <circle cx="7" cy="10" r="3" fill="#0095ff" />
+            <circle cx="29" cy="10" r="3" fill="#0095ff" />
+            <circle cx="7" cy="26" r="3" fill="#ff5e8a" />
+            <circle cx="29" cy="26" r="3" fill="#ffd060" />
+            <line x1="10.5" y1="12.1" x2="15.2" y2="15.5" stroke="#00e5a0" stroke-width="1.5" stroke-linecap="round" />
+            <line x1="25.5" y1="12.1" x2="20.8" y2="15.5" stroke="#0095ff" stroke-width="1.5" stroke-linecap="round" />
+            <line x1="10.5" y1="23.9" x2="15.2" y2="20.5" stroke="#ff5e8a" stroke-width="1.5" stroke-linecap="round" />
+            <line x1="25.5" y1="23.9" x2="20.8" y2="20.5" stroke="#ffd060" stroke-width="1.5" stroke-linecap="round" />
+          </svg>
+          <span class="logo-name">MoleculeIQ</span>
+        </a>
+        <div class="header-badges">
+          <span class="badge badge-green">AI Avengers</span>
+          <span class="badge badge-blue">SVCE · Blueprints 2026</span>
+        </div>
       </div>
     </div>
-  </div>
-</header>
+  </header>
 
-<!-- ============================================================
+  <!-- ============================================================
      HERO
      ============================================================ -->
-<section class="hero" aria-label="Search hero">
-  <div class="container">
-    <div class="hero-tag">Autonomous Research Orchestrator</div>
-    <h1>Discover New Lives for<br>Existing Molecules</h1>
-    <p class="hero-sub">
-      Enter any drug molecule name. MoleculeIQ queries 10 real databases simultaneously,
-      then synthesises a structured Innovation Opportunity Report — in under 30 seconds.
-    </p>
+  <section class="hero" aria-label="Search hero">
+    <div class="container">
+      <div class="hero-tag">Autonomous Research Orchestrator</div>
+      <h1>Discover New Lives for<br>Existing Molecules</h1>
+      <p class="hero-sub">
+        Enter any drug molecule name. MoleculeIQ queries 10 real databases simultaneously,
+        then synthesises a structured Innovation Opportunity Report — in under 30 seconds.
+      </p>
 
-    <!-- Popular Searches Widget (v2.2) -->
-    <div class="popular-searches" role="list" aria-label="Popular search molecules">
-      <button class="pill" onclick="quickSearch('Metformin')"     role="listitem">Metformin</button>
-      <button class="pill" onclick="quickSearch('Aspirin')"       role="listitem">Aspirin</button>
-      <button class="pill" onclick="quickSearch('Sildenafil')"    role="listitem">Sildenafil</button>
-      <button class="pill" onclick="quickSearch('Ibuprofen')"     role="listitem">Ibuprofen</button>
-      <button class="pill" onclick="quickSearch('Thalidomide')"   role="listitem">Thalidomide</button>
-    </div>
-
-    <!-- Search bar (v2.3.2 Fix) -->
-    <div class="search-wrap">
-      <label for="search-input" class="visually-hidden">Drug molecule name</label>
-      <div class="search-inner">
-        <input
-          type="text"
-          id="search-input"
-          class="search-input"
-          placeholder="e.g. Metformin, Aspirin, Sildenafil…"
-          autocomplete="off"
-          spellcheck="false"
-          aria-label="Drug molecule name"
-        />
-        <button id="voice-btn" class="voice-btn" title="Voice Search" aria-label="Voice SEARCH">🎤</button>
-        <div id="autocomplete-results" class="autocomplete-dropdown hidden"></div>
+      <!-- Popular Searches Widget (v2.2) -->
+      <div class="popular-searches" role="list" aria-label="Popular search molecules">
+        <button class="pill" onclick="quickSearch('Metformin')" role="listitem">Metformin</button>
+        <button class="pill" onclick="quickSearch('Aspirin')" role="listitem">Aspirin</button>
+        <button class="pill" onclick="quickSearch('Sildenafil')" role="listitem">Sildenafil</button>
+        <button class="pill" onclick="quickSearch('Ibuprofen')" role="listitem">Ibuprofen</button>
+        <button class="pill" onclick="quickSearch('Thalidomide')" role="listitem">Thalidomide</button>
       </div>
-      <button id="analyze-btn" class="btn-analyze" aria-label="Analyze molecule">
-        ⚡ Analyze
-      </button>
-    </div>
-  </div>
-</section>
 
-<!-- ============================================================
+      <!-- Search bar (v2.3.2 Fix) -->
+      <div class="search-wrap">
+        <label for="search-input" class="visually-hidden">Drug molecule name</label>
+        <div class="search-inner">
+          <input type="text" id="search-input" class="search-input" placeholder="e.g. Metformin, Aspirin, Sildenafil…"
+            autocomplete="off" spellcheck="false" aria-label="Drug molecule name" />
+          <button id="voice-btn" class="voice-btn" title="Voice Search" aria-label="Voice SEARCH">🎤</button>
+          <div id="autocomplete-results" class="autocomplete-dropdown hidden"></div>
+        </div>
+        <button id="analyze-btn" class="btn-analyze" aria-label="Analyze molecule">
+          ⚡ Analyze
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
      HOW IT WORKS
      ============================================================ -->
-<section class="how-bar" aria-label="How MoleculeIQ works">
-  <div class="container">
-    <div class="steps-row">
-      <div class="step-item">
-        <div class="step-num">1</div>
-        <div class="step-label">Input<br>Molecule Name</div>
-      </div>
-      <div class="step-item">
-        <div class="step-num">2</div>
-        <div class="step-label">Multi-Source<br>API Retrieval</div>
-      </div>
-      <div class="step-item">
-        <div class="step-num">3</div>
-        <div class="step-label">Smart Algorithm<br>Synthesis</div>
-      </div>
-      <div class="step-item">
-        <div class="step-num">4</div>
-        <div class="step-label">Innovation<br>Report</div>
+  <section class="how-bar" aria-label="How MoleculeIQ works">
+    <div class="container">
+      <div class="steps-row">
+        <div class="step-item">
+          <div class="step-num">1</div>
+          <div class="step-label">Input<br>Molecule Name</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <div class="step-label">Multi-Source<br>API Retrieval</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <div class="step-label">Smart Algorithm<br>Synthesis</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">4</div>
+          <div class="step-label">Innovation<br>Report</div>
+        </div>
       </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<!-- ============================================================
+  <!-- ============================================================
      ERROR BANNER
      ============================================================ -->
-<div class="container">
-  <div id="error-banner" role="alert" aria-live="polite">
-    ⚠️ <span id="error-msg"></span>
+  <div class="container">
+    <div id="error-banner" role="alert" aria-live="polite">
+      ⚠️ <span id="error-msg"></span>
+    </div>
   </div>
-</div>
 
-<!-- ============================================================
+  <!-- ============================================================
      LOADING SECTION
      ============================================================ -->
-<section id="loading-section" aria-live="polite" aria-label="Analysis in progress">
-  <div class="container">
-    <h2 class="loading-title">Analysing Molecule…</h2>
-    <p class="loading-subtitle">Querying 10 databases & synthesising report simultaneously</p>
+  <section id="loading-section" aria-live="polite" aria-label="Analysis in progress">
+    <div class="container">
+      <h2 class="loading-title">Analysing Molecule…</h2>
+      <p class="loading-subtitle">Querying 10 databases & synthesising report simultaneously</p>
 
-    <!-- DNA Helix animation -->
-    <div class="dna-wrap" aria-hidden="true">
-      <div class="dna-helix">
-        <div class="strand strand-left"></div>
-        <div class="strand strand-right"></div>
-        <div class="node" style="top:2%"></div>
-        <div class="node" style="top:30%"></div>
-        <div class="node" style="top:62%"></div>
-        <div class="node" style="top:88%"></div>
+      <!-- DNA Helix animation -->
+      <div class="dna-wrap" aria-hidden="true">
+        <div class="dna-helix">
+          <div class="strand strand-left"></div>
+          <div class="strand strand-right"></div>
+          <div class="node" style="top:2%"></div>
+          <div class="node" style="top:30%"></div>
+          <div class="node" style="top:62%"></div>
+          <div class="node" style="top:88%"></div>
+        </div>
+      </div>
+
+      <!-- Steps -->
+      <div class="loading-steps" aria-label="Loading steps">
+        <div class="loading-step" data-icon="○" data-active="⟳">
+          <span class="step-icon">○</span>
+          <span>Querying PubMed research papers…</span>
+        </div>
+        <div class="loading-step" data-icon="○" data-active="⟳">
+          <span class="step-icon">○</span>
+          <span>Scanning ClinicalTrials.gov…</span>
+        </div>
+        <div class="loading-step" data-icon="○" data-active="⟳">
+          <span class="step-icon">○</span>
+          <span>Retrieving FDA drug labels…</span>
+        </div>
+        <div class="loading-step" data-icon="○" data-active="⟳">
+          <span class="step-icon">○</span>
+          <span>Fetching RxNorm & ChEMBL classifications…</span>
+        </div>
+        <div class="loading-step" data-icon="○" data-active="⟳">
+          <span class="step-icon">○</span>
+          <span>Scanning global preprint servers…</span>
+        </div>
+        <div class="loading-step" data-icon="○" data-active="⟳">
+          <span class="step-icon">○</span>
+          <span>Querying international trial registries…</span>
+        </div>
+        <div class="loading-step" data-icon="○" data-active="⚙️">
+          <span class="step-icon">○</span>
+          <span>Algorithm synthesising innovation report…</span>
+        </div>
       </div>
     </div>
+  </section>
 
-    <!-- Steps -->
-    <div class="loading-steps" aria-label="Loading steps">
-      <div class="loading-step" data-icon="○" data-active="⟳">
-        <span class="step-icon">○</span>
-        <span>Querying PubMed research papers…</span>
-      </div>
-      <div class="loading-step" data-icon="○" data-active="⟳">
-        <span class="step-icon">○</span>
-        <span>Scanning ClinicalTrials.gov…</span>
-      </div>
-      <div class="loading-step" data-icon="○" data-active="⟳">
-        <span class="step-icon">○</span>
-        <span>Retrieving FDA drug labels…</span>
-      </div>
-      <div class="loading-step" data-icon="○" data-active="⟳">
-        <span class="step-icon">○</span>
-        <span>Fetching RxNorm & ChEMBL classifications…</span>
-      </div>
-      <div class="loading-step" data-icon="○" data-active="⟳">
-        <span class="step-icon">○</span>
-        <span>Scanning global preprint servers…</span>
-      </div>
-      <div class="loading-step" data-icon="○" data-active="⟳">
-        <span class="step-icon">○</span>
-        <span>Querying international trial registries…</span>
-      </div>
-      <div class="loading-step" data-icon="○" data-active="⚙️">
-        <span class="step-icon">○</span>
-        <span>Algorithm synthesising innovation report…</span>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================
+  <!-- ============================================================
      STATS BAR
      ============================================================ -->
-<section id="stats-section" aria-label="Results overview">
-  <div class="container">
-    <div id="experimental-banner" class="banner-experimental" style="display:none;" role="alert">
-      <!-- Injected by JS -->
-    </div>
+  <section id="stats-section" aria-label="Results overview">
+    <div class="container">
+      <div id="experimental-banner" class="banner-experimental" style="display:none;" role="alert">
+        <!-- Injected by JS -->
+      </div>
 
-    <div class="stats-grid stats-grid-6">
-      <div class="stat-item">
-        <span class="stat-num" id="stat-papers">0</span>
-        <span class="stat-label">Research Papers</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-num" id="stat-preprints">0</span>
-        <span class="stat-label">Preprints</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-num" id="stat-trials">0</span>
-        <span class="stat-label">Clinical Trials</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-num" id="stat-global-trials">0</span>
-        <span class="stat-label">Global Trials</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-num" id="stat-fda">0</span>
-        <span class="stat-label">FDA Records</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-num" id="stat-classes">0</span>
-        <span class="stat-label">Drug Classes</span>
+      <div class="stats-grid stats-grid-6">
+        <div class="stat-item">
+          <span class="stat-num" id="stat-papers">0</span>
+          <span class="stat-label">Research Papers</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-num" id="stat-preprints">0</span>
+          <span class="stat-label">Preprints</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-num" id="stat-trials">0</span>
+          <span class="stat-label">Clinical Trials</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-num" id="stat-global-trials">0</span>
+          <span class="stat-label">Global Trials</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-num" id="stat-fda">0</span>
+          <span class="stat-label">FDA Records</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-num" id="stat-classes">0</span>
+          <span class="stat-label">Drug Classes</span>
+        </div>
       </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<!-- ============================================================
+  <!-- ============================================================
      DATA GRID
      ============================================================ -->
-<section id="data-section" aria-label="Retrieved research data">
-  <div class="container">
-    <div class="section-label">📊 Retrieved Data</div>
-    <div class="data-grid">
+  <section id="data-section" aria-label="Retrieved research data">
+    <div class="container">
+      <div class="section-label">📊 Retrieved Data</div>
+      <div class="data-grid">
 
-      <!-- PubMed Card -->
-      <div class="card">
-        <div class="card-header">
-          <span class="card-icon">🔬</span>
-          <span class="card-title">PubMed Research Papers</span>
-          <span class="card-count" id="papers-count">0</span>
+        <!-- PubMed Card -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">🔬</span>
+            <span class="card-title">PubMed Research Papers</span>
+            <span class="card-count" id="papers-count">0</span>
+          </div>
+          <div class="card-body" id="papers-body">
+            <!-- populated by JS -->
+          </div>
         </div>
-        <div class="card-body" id="papers-body">
-          <!-- populated by JS -->
-        </div>
-      </div>
 
-      <!-- ClinicalTrials Card -->
-      <div class="card">
-        <div class="card-header">
-          <span class="card-icon">🧪</span>
-          <span class="card-title">ClinicalTrials.gov</span>
-          <span class="card-count" id="trials-count">0</span>
+        <!-- ClinicalTrials Card -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">🧪</span>
+            <span class="card-title">ClinicalTrials.gov</span>
+            <span class="card-count" id="trials-count">0</span>
+          </div>
+          <div class="card-body" id="trials-body">
+            <!-- populated by JS -->
+          </div>
         </div>
-        <div class="card-body" id="trials-body">
-          <!-- populated by JS -->
-        </div>
-      </div>
 
-      <!-- FDA Labels Card -->
-      <div class="card">
-        <div class="card-header">
-          <span class="card-icon">💊</span>
-          <span class="card-title">FDA Drug Labels</span>
-          <span class="card-count" id="fda-count">0</span>
+        <!-- FDA Labels Card -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">💊</span>
+            <span class="card-title">FDA Drug Labels</span>
+            <span class="card-count" id="fda-count">0</span>
+          </div>
+          <div class="card-body" id="fda-body">
+            <!-- populated by JS -->
+          </div>
         </div>
-        <div class="card-body" id="fda-body">
-          <!-- populated by JS -->
-        </div>
-      </div>
 
-      <!-- RxNorm Card -->
-      <div class="card">
-        <div class="card-header">
-          <span class="card-icon">🔗</span>
-          <span class="card-title">RxNorm Classification</span>
-          <span class="card-count" id="rxnorm-count">0</span>
+        <!-- RxNorm Card -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">🔗</span>
+            <span class="card-title">RxNorm Classification</span>
+            <span class="card-count" id="rxnorm-count">0</span>
+          </div>
+          <div class="card-body" id="rxnorm-body">
+            <!-- populated by JS -->
+          </div>
         </div>
-        <div class="card-body" id="rxnorm-body">
-          <!-- populated by JS -->
+
+      </div><!-- / data-grid row 1 -->
+
+      <!-- Row 2: Preprints + ChEMBL -->
+      <div class="data-grid" style="margin-top:20px">
+
+        <!-- Preprints Card -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">📰</span>
+            <span class="card-title">Today's Research (medRxiv)</span>
+            <span class="card-count" id="preprints-count">0</span>
+          </div>
+          <div class="card-body" id="preprints-body">
+            <!-- populated by JS -->
+          </div>
         </div>
-      </div>
 
-    </div><!-- / data-grid row 1 -->
-
-    <!-- Row 2: Preprints + ChEMBL -->
-    <div class="data-grid" style="margin-top:20px">
-
-      <!-- Preprints Card -->
-      <div class="card">
-        <div class="card-header">
-          <span class="card-icon">📰</span>
-          <span class="card-title">Today's Research (medRxiv)</span>
-          <span class="card-count" id="preprints-count">0</span>
+        <!-- ChEMBL Card -->
+        <div class="card" id="chembl-card">
+          <div class="card-header">
+            <span class="card-icon">⚗️</span>
+            <span class="card-title">Compound Profile (ChEMBL)</span>
+            <span class="card-count" id="chembl-count">0</span>
+          </div>
+          <div class="card-body" id="chembl-body">
+            <!-- populated by JS -->
+          </div>
         </div>
-        <div class="card-body" id="preprints-body">
-          <!-- populated by JS -->
-        </div>
-      </div>
 
-      <!-- ChEMBL Card -->
-      <div class="card" id="chembl-card">
-        <div class="card-header">
-          <span class="card-icon">⚗️</span>
-          <span class="card-title">Compound Profile (ChEMBL)</span>
-          <span class="card-count" id="chembl-count">0</span>
-        </div>
-        <div class="card-body" id="chembl-body">
-          <!-- populated by JS -->
-        </div>
-      </div>
+      </div><!-- / data-grid row 2 -->
+    </div>
+  </section>
 
-    </div><!-- / data-grid row 2 -->
-  </div>
-</section>
-
-<!-- ============================================================
+  <!-- ============================================================
      AI INNOVATION REPORT
      ============================================================ -->
-<section id="report-section" aria-label="AI Innovation Report">
-  <div class="container">
-    <div class="report-header">
-      <div class="report-header-left">
-        <h2>
-          Innovation Report:
-          <span class="report-molecule-name" id="report-mol-name"></span>
-        </h2>
-        <div class="sub">Generated by Smart Report Generator · Powered by real data</div>
+  <section id="report-section" aria-label="AI Innovation Report">
+    <div class="container">
+      <div class="report-header">
+        <div class="report-header-left">
+          <h2>
+            Innovation Report:
+            <span class="report-molecule-name" id="report-mol-name"></span>
+          </h2>
+          <div class="sub">Generated by Smart Report Generator · Powered by real data</div>
+        </div>
+        <button class="btn-export" onclick="exportReport()" aria-label="Export report as PDF">
+          📄 Export PDF
+        </button>
       </div>
-      <button class="btn-export" onclick="exportReport()" aria-label="Export report as PDF">
-        📄 Export PDF
-      </button>
+      <div class="report-body" id="report-body">
+        <!-- populated by JS -->
+      </div>
     </div>
-    <div class="report-body" id="report-body">
-      <!-- populated by JS -->
-    </div>
-  </div>
-</section>
+  </section>
 
-<!-- ============================================================
+  <!-- ============================================================
      FOOTER
      ============================================================ -->
-<footer class="site-footer" role="contentinfo">
-  <div class="container">
-    <div>
-      <strong style="color:var(--accent)">AI Avengers</strong> ·
-      Sri Venkateswara College of Engineering ·
-      Blueprints 2026
+  <footer class="site-footer" role="contentinfo">
+    <div class="container">
+      <div>
+        <strong style="color:var(--accent)">AI Avengers</strong> ·
+        Sri Venkateswara College of Engineering ·
+        Blueprints 2026
+      </div>
+      <div class="footer-apis">
+        <span>NCBI eUtils</span> ·
+        <span>ClinicalTrials.gov v2</span> ·
+        <span>openFDA</span> ·
+        <span>RxNav / NLM</span> ·
+        <span>bioRxiv</span> ·
+        <span>Europe PMC</span> ·
+        <span>ChEMBL</span> ·
+        <span>Semantic Scholar</span> ·
+        <span>CrossRef</span> ·
+        <span>WHO ICTRP</span>
+      </div>
     </div>
-    <div class="footer-apis">
-      <span>NCBI eUtils</span> ·
-      <span>ClinicalTrials.gov v2</span> ·
-      <span>openFDA</span> ·
-      <span>RxNav / NLM</span> ·
-      <span>bioRxiv</span> ·
-      <span>Europe PMC</span> ·
-      <span>ChEMBL</span> ·
-      <span>Semantic Scholar</span> ·
-      <span>CrossRef</span> ·
-      <span>WHO ICTRP</span>
-    </div>
-  </div>
-</footer>
+  </footer>
 
-<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
+
 </html>

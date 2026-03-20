@@ -17,8 +17,7 @@ def init_db():
         conn = sqlite3.connect('cache.db')
         conn.execute('''CREATE TABLE IF NOT EXISTS cache
                         (molecule TEXT PRIMARY KEY, data TEXT, date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-        # Clear stale cache on startup (v2 upgrade)
-        conn.execute('DELETE FROM cache')
+        # Persistence enabled: No longer deleting cache on startup
         conn.commit()
         conn.close()
     except Exception as e:
@@ -29,8 +28,8 @@ init_db()
 def get_cached(molecule):
     try:
         conn = sqlite3.connect('cache.db')
-        # Check cache within last 7 days
-        row = conn.execute("SELECT data FROM cache WHERE molecule=? AND date > datetime('now','-7 days')", [molecule]).fetchone()
+        # Check cache within last 365 days (v2.4 offline-first update)
+        row = conn.execute("SELECT data FROM cache WHERE molecule=? AND date > datetime('now','-365 days')", [molecule]).fetchone()
         conn.close()
         return json.loads(row[0]) if row else None
     except Exception as e:
@@ -246,7 +245,7 @@ def fetch_rxnorm_info(molecule: str) -> dict:
         data = resp.json()
         cand = data.get("approximateGroup", {}).get("candidate", [])
         
-        # If no result, try common salts (Penicillin G -> Penicillin G Potassium)
+        # If no result, try common salts
         if not cand:
             for salt in [" Potassium", " Sodium", " Benzathine", " Calcium"]:
                 resp = requests.get(f"https://rxnav.nlm.nih.gov/REST/approximateTerm.json?term={molecule + salt}&maxEntries=1", timeout=5)
@@ -258,7 +257,7 @@ def fetch_rxnorm_info(molecule: str) -> dict:
             info["rxcui"] = rxcui
             info["drug_classes"] = get_classes(rxcui)
             
-            # Fetch related drug names
+            # Fetch related drug names (tradenames)
             rel_resp = requests.get(f"https://rxnav.nlm.nih.gov/REST/rxcui/{rxcui}/related.json?rela=tradename+has_form", timeout=10)
             rel_data = rel_resp.json()
             groups = rel_data.get("relatedGroup", {}).get("conceptGroup", [])
@@ -267,6 +266,7 @@ def fetch_rxnorm_info(molecule: str) -> dict:
                     name = prop.get("name")
                     if name and name not in info["related_drugs"]:
                         info["related_drugs"].append(name)
+            info["related_drugs"] = info["related_drugs"][:12]
                         
     except Exception as exc:
         print(f"[RxNorm] Error: {exc}")
@@ -789,68 +789,6 @@ def merge_trials(ct_trials: list, who_trials: list) -> list:
     return ct_trials + new_trials
 
 
-def fetch_rxnorm_info(molecule: str) -> dict:
-    """Fetch drug classification from NLM RxNav API."""
-    base = "https://rxnav.nlm.nih.gov/REST"
-    result = {
-        "rxcui": None,
-        "drug_classes": [],
-        "related_drugs": [],
-    }
-    try:
-        # Step 1 – get RxCUI
-        cui_res = requests.get(
-            f"{base}/rxcui.json",
-            params={"name": molecule},
-            timeout=10,
-        )
-        cui_data = cui_res.json()
-        rxcui = (
-            cui_data.get("idGroup", {}).get("rxnormId", [None])[0]
-        )
-        if not rxcui:
-            return result
-        result["rxcui"] = rxcui
-
-        # Step 2 – drug classes
-        class_res = requests.get(
-            f"{base}/rxclass/class/byRxcui.json",
-            params={"rxcui": rxcui, "relaSource": "MESHPA"},
-            timeout=10,
-        )
-        class_data = class_res.json()
-        rx_class_list = (
-            class_data.get("rxclassDrugInfoList", {})
-            .get("rxclassDrugInfo", [])
-        )
-        seen = set()
-        for item in rx_class_list:
-            cls = item.get("rxclassMinConceptItem", {}).get("className", "")
-            if cls and cls not in seen:
-                seen.add(cls)
-                result["drug_classes"].append(cls)
-
-        # Step 3 – related drugs (same class / NDFs)
-        rel_res = requests.get(
-            f"{base}/related.json",
-            params={"rxcui": rxcui, "rela": "tradename_of"},
-            timeout=10,
-        )
-        rel_data = rel_res.json()
-        groups = (
-            rel_data.get("relatedGroup", {})
-            .get("conceptGroup", [])
-        )
-        for grp in groups:
-            for concept in grp.get("conceptProperties", []):
-                name = concept.get("name", "")
-                if name:
-                    result["related_drugs"].append(name)
-        result["related_drugs"] = result["related_drugs"][:10]
-
-    except Exception as exc:
-        print(f"[RxNorm] Error: {exc}")
-    return result
 
 
 # ──────────────────────────────────────────────────────────
@@ -864,50 +802,51 @@ def index():
 
 @app.route("/api/suggest")
 def suggest():
-    """v2.3.3 Fixed Autocomplete: Robust RxNorm fetching and fallbacks."""
+    """v2.3.4 Fixed Autocomplete: Robust RxNorm fetching and smart filtering."""
     q = (request.args.get("q") or "").strip()
     if len(q) < 2: return jsonify([])
     
     try:
-        # Strategy 1: RxNorm Spellcheck (extremely fast)
-        resp = requests.get(f"https://rxnav.nlm.nih.gov/REST/spellcheck.json?term={q}", timeout=3)
-        suggestions = []
-        if resp.status_code == 200:
-            suggestions = resp.json().get("suggestionGroup", {}).get("suggestion", [])
-            if suggestions:
-                return jsonify(suggestions[:8])
-                
-        # Strategy 2: Emergency Demo Fallback (Guarantees responsiveness)
         pref = q.lower()
-        if pref.startswith("met"): suggestions = ["Metformin", "Methotrexate", "Methylphenidate", "Metoprolol"]
-        elif pref.startswith("asp"): suggestions = ["Aspirin", "Asparaginase"]
-        elif pref.startswith("sil"): suggestions = ["Sildenafil", "Silodosin"]
+        suggestions = []
+
+        # Strategy 1: Emergency Demo / Trending Fallback (Filtered)
+        demo_molecules = [
+            "Metformin", "Methotrexate", "Methylphenidate", "Metoprolol", "Metronidazole",
+            "Aspirin", "Aspirin Sodium", "Atorvastatin", "Amoxicillin", "Albuterol",
+            "Sildenafil", "Sildenafil Citrate", "Simvastatin", "Sertraline", "Spironolactone",
+            "Ibuprofen", "Insulin", "Imatinib", "Infliximab",
+            "Thalidomide", "Tramadol", "Tamsulosin", "Ticagrelor",
+            "Rapamycin", "Ramipril", "Rivaroxaban", "Rosuvastatin"
+        ]
+        suggestions = [m for m in demo_molecules if m.lower().startswith(pref)]
         
-        if suggestions: return jsonify(suggestions[:8])
+        # Strategy 2: RxNorm Spellcheck (Fast)
+        if len(suggestions) < 5:
+            resp = requests.get(f"https://rxnav.nlm.nih.gov/REST/spellcheck.json?term={q}", timeout=3)
+            if resp.status_code == 200:
+                spell_sug = resp.json().get("suggestionGroup", {}).get("suggestion", [])
+                for s in spell_sug:
+                    if s not in suggestions: suggestions.append(s)
                 
-        # Strategy 3: approximateTerm (User spec fallback)
-        res2 = requests.get(f"https://rxnav.nlm.nih.gov/REST/approximateTerm.json?term={q}&maxEntries=10", timeout=4)
-        if res2.status_code == 200:
-            cand = res2.json().get("approximateGroup", {}).get("candidate", [])
-            valid_cuis = []
-            for c in cand:
-                try:
-                    if int(c.get("score",0)) > 50: valid_cuis.append(c["rxcui"])
-                except: continue
-            
-            def fetch_n(rxcui):
-                try: 
-                    r = requests.get(f"https://rxnav.nlm.nih.gov/REST/rxcui/{rxcui}/properties.json", timeout=2)
-                    return r.json().get("properties", {}).get("name")
-                except: return None
+        # Strategy 3: approximateTerm (Deep search)
+        if len(suggestions) < 3:
+            res2 = requests.get(f"https://rxnav.nlm.nih.gov/REST/approximateTerm.json?term={q}&maxEntries=10", timeout=4)
+            if res2.status_code == 200:
+                cand = res2.json().get("approximateGroup", {}).get("candidate", [])
                 
-            names = []
-            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as ex:
-                for name in ex.map(fetch_n, valid_cuis[:5]):
-                    if name and name not in names: names.append(name)
-            if names: return jsonify(names[:8])
+                def fetch_name(rxcui):
+                    try: 
+                        r = requests.get(f"https://rxnav.nlm.nih.gov/REST/rxcui/{rxcui}/properties.json", timeout=2)
+                        return r.json().get("properties", {}).get("name")
+                    except: return None
+                
+                with concurrent.futures.ThreadPoolExecutor(max_workers=5) as ex:
+                    ids = [c["rxcui"] for c in cand if int(c.get("score", 0)) > 60]
+                    for name in ex.map(fetch_name, ids[:8]):
+                        if name and name not in suggestions: suggestions.append(name)
             
-        return jsonify([])
+        return jsonify(suggestions[:8])
     except Exception as e:
         print(f"[Suggest] Error: {e}")
         return jsonify([])
