@@ -544,7 +544,16 @@ function renderRxNorm(rxnorm, chembl) {
 
   if (!rxnorm.rxcui && !classes.length && !related.length) {
     if (chembl && chembl.chembl_id) {
-      rxnormBody.innerHTML = `<div class="empty-state"><div class="empty-icon">🔗</div>Not in RxNorm — see ChEMBL card below</div>`;
+      rxnormBody.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🔗</div>
+          <p>Investigational Status Detected</p>
+          <p style="font-size: 0.75rem; margin-top: 8px; color: var(--text-muted); line-height: 1.4;">
+            This molecule is not yet in the RxNorm clinical database. 
+            Detailed structural and clinical phase data is available in the 
+            <a href="#chembl-card" style="color:var(--accent2); font-weight: 700;">ChEMBL Profile</a> below.
+          </p>
+        </div>`;
     } else {
       rxnormBody.innerHTML = emptyState("🔗", "Drug not found in RxNorm database");
     }
@@ -910,33 +919,33 @@ if (chatbotBtn && chatbotWin && chatbotWidget) {
     dragMoved = false;
     startX = e.clientX;
     startY = e.clientY;
-    
+
     // Calculate mouse offset from top-left of widget
     const rect = chatbotWidget.getBoundingClientRect();
     offsetX = e.clientX - rect.left;
     offsetY = e.clientY - rect.top;
-    
+
     chatbotBtn.style.cursor = 'grabbing';
     e.preventDefault(); // Prevent text selection
   });
 
   window.addEventListener('mousemove', (e) => {
     if (!isDragging) return;
-    
+
     const deltaX = Math.abs(e.clientX - startX);
     const deltaY = Math.abs(e.clientY - startY);
-    
+
     if (deltaX > dragThreshold || deltaY > dragThreshold) {
       dragMoved = true;
-      
+
       // Calculate new position
       let newX = e.clientX - offsetX;
       let newY = e.clientY - offsetY;
-      
+
       // Keep it within viewport
       newX = Math.max(10, Math.min(newX, window.innerWidth - chatbotWidget.offsetWidth - 10));
       newY = Math.max(10, Math.min(newY, window.innerHeight - chatbotWidget.offsetHeight - 10));
-      
+
       // Switch from right/bottom to left/top
       chatbotWidget.style.right = 'auto';
       chatbotWidget.style.bottom = 'auto';
@@ -971,12 +980,29 @@ if (chatCloseBtn) {
   });
 }
 
-function appendMessage(text, type = 'bot') {
+function appendMessage(text, type = 'bot', activities = []) {
   const msgDiv = document.createElement('div');
   msgDiv.className = `chatbot-message ${type}-message`;
 
   if (type === 'bot') {
-    // 1. Parse Markdown first
+    // ── Render Activity Feed first if present ──
+    let activityHtml = '';
+    if (activities.length > 0) {
+      activityHtml = `
+        <div class="activity-feed">
+          ${activities.map(a => `
+            <div class="activity-item status-${a.status}">
+              <span class="activity-icon">${a.status === 'done' ? '✅' : '⏳'}</span>
+              <span class="activity-agent">${a.agent} Agent</span>: 
+              <span class="activity-action">${a.action}</span>
+            </div>
+          `).join('')}
+        </div>
+        <hr class="feed-divider">
+      `;
+    }
+
+    // 1. Parse Markdown 
     let html = typeof marked !== 'undefined' ? marked.parse(text) : text;
 
     // 2. Parse specialized Inline Cards
@@ -984,21 +1010,24 @@ function appendMessage(text, type = 'bot') {
     html = html.replace(cardRegex, (match, name, cls, status, insight) => {
       return `
         <div class="candidate-card">
+          <div class="card-glow"></div>
           <h4>🧬 ${name.trim()}</h4>
           <div class="card-meta">${cls.trim()}</div>
-          <div class="card-metric">
-            <span class="metric-key">Status</span>
-            <span class="metric-val">${status.trim()}</span>
-          </div>
-          <div class="card-metric">
-            <span class="metric-key">Key Insight</span>
-            <span class="metric-val">${insight.trim()}</span>
+          <div class="card-metrics">
+            <div class="card-metric">
+              <span class="metric-key">Status</span>
+              <span class="metric-val status-badge">${status.trim()}</span>
+            </div>
+            <div class="card-metric">
+              <span class="metric-key">Insight</span>
+              <span class="metric-val">${insight.trim()}</span>
+            </div>
           </div>
         </div>
       `;
     });
 
-    msgDiv.innerHTML = html;
+    msgDiv.innerHTML = activityHtml + html;
   } else {
     msgDiv.textContent = text;
   }
@@ -1044,7 +1073,7 @@ if (chatSendBtn && chatInput) {
       if (data.error) {
         appendMessage('⚠️ Error: ' + data.error, 'bot');
       } else {
-        appendMessage(data.agent_response || 'No response', 'bot');
+        appendMessage(data.agent_response || 'No response', 'bot', data.activities || []);
       }
     } catch (err) {
       chatbotStatus.classList.add("hidden");

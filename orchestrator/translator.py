@@ -21,5 +21,6 @@ class Translator:
             "constraints": parsed_query.constraints.model_dump(),
             "reasoning": parsed_query.reasoning,
             "agent_response": agent_response.response,
-            "source_agent": agent_response.source_agent
+            "source_agent": agent_response.source_agent,
+            "activities": [a.model_dump() for a in agent_response.activities]
         }

@@ -38,7 +38,8 @@ Keep the response highly structured with bullet points. Cite sources like 'USPTO
             messages=[
                 {"role": "system", "content": system_prompt},
             ],
-            temperature=0.3
+            temperature=0.3,
+            max_tokens=1024
         )
         content = response.choices[0].message.content
         return AgentResponse(response=content, source_agent="MoleculeIQ Patent Intelligence")

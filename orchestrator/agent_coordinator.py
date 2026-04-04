@@ -1,6 +1,7 @@
 import os
+import concurrent.futures
 from openai import OpenAI
-from .schemas import ParsedQuery, AgentResponse
+from .schemas import ParsedQuery, AgentResponse, AgentActivity
 from .cdsco_agent import run_cdsco_agent
 from .patent_agent import run_patent_agent
 from .market_agent import run_market_agent
@@ -11,7 +12,7 @@ client = OpenAI(
 )
 OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "google/gemini-2.0-flash")
 
-def run_general_agent(parsed_query: ParsedQuery, raw_query: str, page_context: dict = None) -> AgentResponse:
+def run_general_agent(parsed_query: ParsedQuery, raw_query: str, page_context: dict = None, activities: list = None) -> AgentResponse:
     molecule = parsed_query.constraints.molecule_name or "this molecule"
     
     context_str = f"\nCURRENT PAGE DATA SCAN: {page_context}\n" if page_context else ""
@@ -47,25 +48,83 @@ If 'CURRENT PAGE DATA SCAN' is provided above, refer to it for accuracy.
             max_tokens=1024
         )
         content = response.choices[0].message.content
-        return AgentResponse(response=content, source_agent="MoleculeIQ Core Intelligence")
+        return AgentResponse(
+            response=content, 
+            source_agent="MoleculeIQ Core Intelligence",
+            activities=activities or []
+        )
     except Exception as e:
         return AgentResponse(
             response=f"Error running General agent: {e}",
-            source_agent="MoleculeIQ Core Intelligence"
+            source_agent="MoleculeIQ Core Intelligence",
+            activities=activities or []
         )
+
+def coordinate_multi_agent(parsed_query: ParsedQuery, raw_query: str, page_context: dict = None) -> AgentResponse:
+    """
+    Coordinates Clinical, Patent, and Market agents in parallel for a comprehensive scan.
+    """
+    activities = []
+    
+    # Define tasks for parallel execution
+    tasks = {
+        "Clinical": lambda: run_cdsco_agent(parsed_query, raw_query, page_context),
+        "Patent": lambda: run_patent_agent(parsed_query, raw_query, page_context),
+        "Market": lambda: run_market_agent(parsed_query, raw_query, page_context)
+    }
+
+    results = {}
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future_to_agent = {executor.submit(func): name for name, func in tasks.items()}
+        for future in concurrent.futures.as_completed(future_to_agent):
+            agent_name = future_to_agent[future]
+            try:
+                res = future.result()
+                results[agent_name] = res.response
+                activities.append(AgentActivity(agent=agent_name, action=f"Analyzed {agent_name} data", status="done"))
+            except Exception as e:
+                activities.append(AgentActivity(agent=agent_name, action=f"Failed analysis", status="error"))
+
+    # Synthesize the final response using the General Agent with the gathered intelligence
+    full_intel_query = f"""
+I have gathered specialized intelligence:
+
+CLINICAL INTEL:
+{results.get('Clinical', 'No data')}
+
+PATENT INTEL:
+{results.get('Patent', 'No data')}
+
+MARKET INTEL:
+{results.get('Market', 'No data')}
+
+User's Original Question: {raw_query}
+
+Please provide a master synthesis report using the specialized data above.
+"""
+    return run_general_agent(parsed_query, full_intel_query, page_context, activities=activities)
 
 def coordinate_agent(parsed_query: ParsedQuery, raw_query: str, page_context: dict = None) -> AgentResponse:
     """
-    Routes the parsed query to the appropriate specialized agent.
+    Routes the parsed query to the appropriate specialized agent or multi-agent scanner.
     """
+    # ── For research-heavy queries, trigger the Multi-Agent Scanner ──
+    if parsed_query.intent in ["GENERAL_MOLECULE_SEARCH", "CLINICAL_TRIAL_SEARCH"]:
+        return coordinate_multi_agent(parsed_query, raw_query, page_context)
+    
+    # ── Specific intent routing ──
     if parsed_query.intent == "CDSCO_STATUS":
-        return run_cdsco_agent(parsed_query, raw_query, page_context=page_context)
+        res = run_cdsco_agent(parsed_query, raw_query, page_context=page_context)
+        res.activities = [AgentActivity(agent="Clinical", action="Checked CDSCO Status", status="done")]
+        return res
     elif parsed_query.intent == "PATENT_SEARCH":
-        return run_patent_agent(parsed_query, raw_query, page_context=page_context)
+        res = run_patent_agent(parsed_query, raw_query, page_context=page_context)
+        res.activities = [AgentActivity(agent="Patent", action="Scanning Patent Portfolio", status="done")]
+        return res
     elif parsed_query.intent == "MARKET_SEARCH":
-        return run_market_agent(parsed_query, raw_query, page_context=page_context)
-    elif parsed_query.intent in ["GENERAL_MOLECULE_SEARCH", "CLINICAL_TRIAL_SEARCH"]:
-        return run_general_agent(parsed_query, raw_query, page_context=page_context)
+        res = run_market_agent(parsed_query, raw_query, page_context=page_context)
+        res.activities = [AgentActivity(agent="Market", action="Analyzing Market Dynamics", status="done")]
+        return res
     else:
         # Fallback to general agent
         return run_general_agent(parsed_query, raw_query, page_context=page_context)

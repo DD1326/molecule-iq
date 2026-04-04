@@ -248,7 +248,10 @@ def fetch_fda_labels(molecule: str) -> list:
 
 
 def fetch_rxnorm_info(molecule: str) -> dict:
-    """Fetch RxCUI and therapeutic classes from RxNorm & RxClass."""
+    """
+    Fetch RxCUI and therapeutic classes from RxNorm & RxClass.
+    Strategy 2.1: Robust multi-stage lookup.
+    """
     info = {"rxcui": None, "drug_classes": [], "related_drugs": []}
     
     def get_classes(rxcui):
@@ -275,37 +278,60 @@ def fetch_rxnorm_info(molecule: str) -> dict:
         return classes
 
     try:
-        # Try search for the base name
-        resp = requests.get(f"https://rxnav.nlm.nih.gov/REST/approximateTerm.json?term={molecule}&maxEntries=1", timeout=10)
-        data = resp.json()
-        cand = data.get("approximateGroup", {}).get("candidate", [])
-        
-        # If no result, try common salts
-        if not cand:
-            for salt in [" Potassium", " Sodium", " Benzathine", " Calcium"]:
-                resp = requests.get(f"https://rxnav.nlm.nih.gov/REST/approximateTerm.json?term={molecule + salt}&maxEntries=1", timeout=5)
-                cand = resp.json().get("approximateGroup", {}).get("candidate", [])
-                if cand: break
+        # STRATEGY 1: Exact Match (getDrugs)
+        resp1 = requests.get("https://rxnav.nlm.nih.gov/REST/drugs.json", params={"name": molecule}, timeout=5)
+        if resp1.status_code == 200:
+            drug_data = resp1.json().get("drugGroup", {}).get("conceptGroup", [])
+            for group in drug_data:
+                props = group.get("conceptProperties", [])
+                if props:
+                    info["rxcui"] = props[0].get("rxcui")
+                    break
 
-        if cand:
-            if float(cand[0].get("score", 0)) > 50:
-                rxcui = cand[0].get("rxcui")
-                info["rxcui"] = rxcui
-                info["drug_classes"] = get_classes(rxcui)
-                
-                # Fetch related drug names (tradenames)
-                try:
-                    rel_resp = requests.get(f"https://rxnav.nlm.nih.gov/REST/rxcui/{rxcui}/related.json?rela=tradename+has_form", timeout=10)
-                    if rel_resp.status_code == 200:
-                        rel_data = rel_resp.json()
-                        groups = rel_data.get("relatedGroup", {}).get("conceptGroup", [])
-                        for g in groups:
-                            for prop in g.get("conceptProperties", []):
-                                name = prop.get("name")
-                                if name and name not in info["related_drugs"]:
-                                    info["related_drugs"].append(name)
-                        info["related_drugs"] = info["related_drugs"][:12]
-                except Exception: pass
+        # STRATEGY 2: Approximate Term (Fuzzy)
+        if not info["rxcui"]:
+            resp2 = requests.get("https://rxnav.nlm.nih.gov/REST/approximateTerm.json", 
+                                params={"term": molecule, "maxEntries": 1}, timeout=10)
+            if resp2.status_code == 200:
+                cand = resp2.json().get("approximateGroup", {}).get("candidate", [])
+                # Lower threshold (30 instead of 50) as approximateTerm is often conservative
+                if cand and float(cand[0].get("score", 0)) > 30:
+                    info["rxcui"] = cand[0].get("rxcui")
+
+        # STRATEGY 3: Spellcheck fallback
+        if not info["rxcui"]:
+            resp3 = requests.get("https://rxnav.nlm.nih.gov/REST/spellcheck.json", params={"term": molecule}, timeout=5)
+            if resp3.status_code == 200:
+                sugs = resp3.json().get("suggestionGroup", {}).get("suggestion", [])
+                if sugs:
+                    # Try first suggestion
+                    resp4 = requests.get("https://rxnav.nlm.nih.gov/REST/drugs.json", params={"name": sugs[0]}, timeout=5)
+                    if resp4.status_code == 200:
+                        drug_data = resp4.json().get("drugGroup", {}).get("conceptGroup", [])
+                        for group in drug_data:
+                            props = group.get("conceptProperties", [])
+                            if props:
+                                info["rxcui"] = props[0].get("rxcui")
+                                break
+
+        # If we have an RxCUI, fetch classes and related drugs
+        if info["rxcui"]:
+            rxcui = info["rxcui"]
+            info["drug_classes"] = get_classes(rxcui)
+            
+            # Fetch related drug names (tradenames)
+            try:
+                rel_resp = requests.get(f"https://rxnav.nlm.nih.gov/REST/rxcui/{rxcui}/related.json?rela=tradename+has_form", timeout=10)
+                if rel_resp.status_code == 200:
+                    rel_data = rel_resp.json()
+                    groups = rel_data.get("relatedGroup", {}).get("conceptGroup", [])
+                    for g in groups:
+                        for prop in g.get("conceptProperties", []):
+                            name = prop.get("name")
+                            if name and name not in info["related_drugs"]:
+                                info["related_drugs"].append(name)
+                    info["related_drugs"] = info["related_drugs"][:12]
+            except Exception: pass
                         
     except Exception as exc:
         print(f"[RxNorm] Error: {exc}")

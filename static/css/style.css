@@ -1522,7 +1522,7 @@ body::before {
   background: var(--accent);
 }
 
-   
+ 
 
 /* ============================================================
    CHATBOT WIDGET STYLES
@@ -1919,7 +1919,7 @@ body::before {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0,0,0,0.85);
+  background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(8px);
   z-index: 10000;
   display: flex;
@@ -1927,10 +1927,12 @@ body::before {
   align-items: center;
   transition: opacity 0.3s ease;
 }
+
 .modal.hidden {
   display: none;
   opacity: 0;
 }
+
 .modal-content.modal-warning {
   background: #0f172a;
   border: 2px solid #ff5e8a;
@@ -1940,20 +1942,24 @@ body::before {
   padding: 30px;
   box-shadow: 0 0 50px rgba(255, 94, 138, 0.4);
 }
+
 .modal-header {
   display: flex;
   align-items: center;
   gap: 15px;
   margin-bottom: 20px;
 }
+
 .warning-icon {
   font-size: 2.5rem;
 }
+
 .modal-header h2 {
   color: #ff5e8a !important;
   margin: 0;
   font-size: 1.5rem;
 }
+
 .warning-details {
   background: rgba(255, 94, 138, 0.1);
   padding: 15px;
@@ -1961,11 +1967,13 @@ body::before {
   margin: 15px 0;
   border: 1px dashed rgba(255, 94, 138, 0.3);
 }
+
 .warning-row {
   margin-bottom: 8px;
   font-size: 0.95rem;
   color: #f8fafc;
 }
+
 .warning-footer {
   font-size: 0.85rem;
   opacity: 0.7;
@@ -1973,6 +1981,7 @@ body::before {
   margin-top: 20px;
   color: #f8fafc;
 }
+
 .btn-close-modal {
   width: 100%;
   padding: 12px;
@@ -1984,6 +1993,7 @@ body::before {
   cursor: pointer;
   transition: all 0.2s;
 }
+
 .btn-close-modal:hover {
   background: #ff3e6a;
   transform: translateY(-2px);
@@ -1993,3 +2003,112 @@ body::before {
   color: var(--accent);
   font-weight: 600;
 }
+
+/* ====================================================
+   ACTIVITY FEED & CANDIDATE CARDS (v3.1)
+   ==================================================== */
+.activity-feed {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.activity-item {
+  margin-bottom: 4px;
+  opacity: 0.8;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.activity-agent {
+  color: var(--accent2);
+  font-weight: 700;
+}
+
+.activity-icon {
+  font-size: 0.85rem;
+}
+
+.feed-divider {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 10px 0;
+}
+
+/* Enhanced Candidate Card */
+.candidate-card {
+  position: relative;
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+  border: 1px solid rgba(0, 229, 160, 0.2);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s ease;
+}
+
+.card-glow {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(0, 229, 160, 0.05) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.candidate-card h4 {
+  color: var(--accent);
+  font-family: var(--font-head);
+  font-size: 1.1rem;
+  margin-bottom: 6px;
+}
+
+.card-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+.card-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.card-metric {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 8px;
+  border-radius: 6px;
+}
+
+.metric-key {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.metric-val {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.status-badge {
+  display: inline-block;
+  background: rgba(0, 229, 160, 0.1);
+  color: var(--accent);
+  padding: 2px 8px;
+  border-radius: 100px;
+  font-size: 0.7rem;
+  border: 1px solid rgba(0, 229, 160, 0.3);
+}

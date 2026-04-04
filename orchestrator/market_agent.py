@@ -39,7 +39,8 @@ Maintain a professional, data-centric tone with markdown summaries.
             messages=[
                 {"role": "system", "content": system_prompt},
             ],
-            temperature=0.3
+            temperature=0.3,
+            max_tokens=1024
         )
         content = response.choices[0].message.content
         return AgentResponse(response=content, source_agent="MoleculeIQ Market Intelligence")
