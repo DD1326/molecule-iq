@@ -11,7 +11,7 @@ class Translator:
 
     def process_query(self, user_query: str, page_context: dict = None, chat_history: list = None) -> dict:
         # Step 1: Parse the user's natural language to structured constraints
-        parsed_query = parse_query(user_query)
+        parsed_query = parse_query(user_query, chat_history=chat_history)
 
         # Step 2: Route to the appropriate agent (with history support from Account 2)
         agent_response = coordinate_agent(parsed_query, user_query, page_context=page_context, chat_history=chat_history)

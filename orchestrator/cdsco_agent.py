@@ -10,7 +10,7 @@ client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=os.environ.get("OPENROUTER_API_KEY", "dummy"),
 )
-OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "google/gemini-2.5-pro")
+OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
 
 def run_cdsco_agent(parsed_query: ParsedQuery, raw_query: str, page_context: dict = None) -> AgentResponse:
     molecule = parsed_query.constraints.molecule_name or "this molecule"

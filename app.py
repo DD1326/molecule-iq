@@ -14,7 +14,7 @@ import concurrent.futures
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, render_template
 from dotenv import load_dotenv
-import google.generativeai as genai
+# Note: All AI calls are routed through OpenRouter. google.generativeai not needed.
 
 import sqlite3
 
@@ -24,10 +24,9 @@ import sqlite3
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-    print("[Gemini] API key loaded successfully.")
+    print("[OpenRouter] API key loaded successfully (routed via OpenRouter).")
 else:
-    print("[Gemini] WARNING: No GEMINI_API_KEY found in .env file. Chatbot will be disabled.")
+    print("[OpenRouter] WARNING: No API key found. Chatbot responses may fail.")
 
 from orchestrator import Translator
 translator = Translator()
