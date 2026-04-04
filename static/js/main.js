@@ -186,7 +186,14 @@ async function startAnalysis() {
     await sleep(600); activateStep(5);
 
     const res = await fetchPromise;
-    if (!res.ok) throw new Error(`Server error: ${res.status}`);
+    if (!res.ok) {
+      let errMsg = `Server error: ${res.status}`;
+      try {
+        const errJson = await res.json();
+        if (errJson.error) errMsg = errJson.error;
+      } catch(e) {}
+      throw new Error(errMsg);
+    }
     data = await res.json();
 
     activateStep(6);

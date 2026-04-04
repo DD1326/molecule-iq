@@ -6,44 +6,60 @@ Team: AI Avengers | SVCE Blueprints 2026
 """
 
 import json
+import os
 import requests
-import sqlite3
+import redis
 import concurrent.futures
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, render_template
+from dotenv import load_dotenv
+import google.generativeai as genai
 
-def init_db():
-    try:
-        conn = sqlite3.connect('cache.db')
-        conn.execute('''CREATE TABLE IF NOT EXISTS cache
-                        (molecule TEXT PRIMARY KEY, data TEXT, date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-        # Persistence enabled: No longer deleting cache on startup
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        print(f"[DB] Init error: {e}")
+# ──────────────────────────────────────────────────────────
+#  CHATBOT ASSISTANT (Gemini AI)
+# ──────────────────────────────────────────────────────────
+load_dotenv()
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    print("[Gemini] API key loaded successfully.")
+else:
+    print("[Gemini] WARNING: No GEMINI_API_KEY found in .env file. Chatbot will be disabled.")
 
-init_db()
+# ──────────────────────────────────────────────────────────
+#  REDIS CACHE SETUP
+# ──────────────────────────────────────────────────────────
+redis_client = None
+try:
+    redis_client = redis.Redis.from_url(
+        "redis://default:TZxV3ll1TrSPijtsrlRkg7BhAt0sxkgf@redis-11730.c280.us-central1-2.gce.cloud.redislabs.com:11730",
+        decode_responses=True
+    )
+    # Test connection
+    redis_client.ping()
+    print("[Redis] Connected securely to remote Redis server.")
+except Exception as e:
+    print(f"[Redis] Connection error: {e}")
 
 def get_cached(molecule):
     try:
-        conn = sqlite3.connect('cache.db')
-        # Check cache within last 365 days (v2.4 offline-first update)
-        row = conn.execute("SELECT data FROM cache WHERE molecule=? AND date > datetime('now','-365 days')", [molecule]).fetchone()
-        conn.close()
-        return json.loads(row[0]) if row else None
+        if redis_client:
+            cached_data = redis_client.get(f"cache:{molecule}")
+            if cached_data:
+                print(f"[Redis] Cache hit for {molecule}")
+                return json.loads(cached_data)
+        return None
     except Exception as e:
-        print(f"[DB] Get cache error: {e}")
+        print(f"[Redis] Get cache error: {e}")
         return None
 
 def set_cached(molecule, data):
     try:
-        conn = sqlite3.connect('cache.db')
-        conn.execute("INSERT OR REPLACE INTO cache (molecule, data, date) VALUES (?, ?, CURRENT_TIMESTAMP)", [molecule, json.dumps(data)])
-        conn.commit()
-        conn.close()
+        if redis_client:
+            # Cache for 365 days (31536000 seconds)
+            redis_client.setex(f"cache:{molecule}", 31536000, json.dumps(data))
     except Exception as e:
-        print(f"[DB] Set cache error: {e}")
+        print(f"[Redis] Set cache error: {e}")
 
 app = Flask(__name__)
 
@@ -253,20 +269,24 @@ def fetch_rxnorm_info(molecule: str) -> dict:
                 if cand: break
 
         if cand:
-            rxcui = cand[0].get("rxcui")
-            info["rxcui"] = rxcui
-            info["drug_classes"] = get_classes(rxcui)
-            
-            # Fetch related drug names (tradenames)
-            rel_resp = requests.get(f"https://rxnav.nlm.nih.gov/REST/rxcui/{rxcui}/related.json?rela=tradename+has_form", timeout=10)
-            rel_data = rel_resp.json()
-            groups = rel_data.get("relatedGroup", {}).get("conceptGroup", [])
-            for g in groups:
-                for prop in g.get("conceptProperties", []):
-                    name = prop.get("name")
-                    if name and name not in info["related_drugs"]:
-                        info["related_drugs"].append(name)
-            info["related_drugs"] = info["related_drugs"][:12]
+            if float(cand[0].get("score", 0)) > 50:
+                rxcui = cand[0].get("rxcui")
+                info["rxcui"] = rxcui
+                info["drug_classes"] = get_classes(rxcui)
+                
+                # Fetch related drug names (tradenames)
+                try:
+                    rel_resp = requests.get(f"https://rxnav.nlm.nih.gov/REST/rxcui/{rxcui}/related.json?rela=tradename+has_form", timeout=10)
+                    if rel_resp.status_code == 200:
+                        rel_data = rel_resp.json()
+                        groups = rel_data.get("relatedGroup", {}).get("conceptGroup", [])
+                        for g in groups:
+                            for prop in g.get("conceptProperties", []):
+                                name = prop.get("name")
+                                if name and name not in info["related_drugs"]:
+                                    info["related_drugs"].append(name)
+                        info["related_drugs"] = info["related_drugs"][:12]
+                except Exception: pass
                         
     except Exception as exc:
         print(f"[RxNorm] Error: {exc}")
@@ -841,7 +861,7 @@ def suggest():
                     except: return None
                 
                 with concurrent.futures.ThreadPoolExecutor(max_workers=5) as ex:
-                    ids = [c["rxcui"] for c in cand if int(c.get("score", 0)) > 60]
+                    ids = [c["rxcui"] for c in cand if float(c.get("score", 0)) > 60]
                     for name in ex.map(fetch_name, ids[:8]):
                         if name and name not in suggestions: suggestions.append(name)
             
@@ -895,6 +915,11 @@ def analyze():
 
     # ChEMBL data — fetch to get structural properties & clinical phase
     chembl = fetch_chembl(molecule)
+
+    # ── VALIDATE DRUG/MOLECULE ──
+    # If no FDA records, no ChEMBL ID, and no RxNorm CUI, it's not a recognized drug.
+    if not fda and not chembl and not rxnorm.get("rxcui"):
+        return jsonify({"error": f"'{molecule}' does not appear to be a recognized drug or molecule. Please enter a valid name."}), 404
 
     # ── Merge papers: PubMed + Europe PMC + Semantic Scholar + CrossRef ──
     # Tag PubMed papers with source
@@ -986,6 +1011,79 @@ TASK:
 4. Conclude with: "Research suggests clinical interest in [Conditions] based on current trial trajectory."
 """
     return jsonify({"prompt": prompt})
+
+CHATBOT_SYSTEM_PROMPT = """
+You are MoleculeIQ Assistant — an expert AI assistant specializing in drug repurposing, 
+pharmacology, and pharmaceutical research. You are built into the MoleculeIQ platform, 
+which queries 10+ real databases (PubMed, ClinicalTrials.gov, openFDA, RxNorm, ChEMBL, 
+Europe PMC, Semantic Scholar, CrossRef, medRxiv/bioRxiv, WHO ICTRP, DailyMed).
+
+Your role:
+- Help users understand drug molecules, their mechanisms, clinical trials, and repurposing potential.
+- Answer questions about pharmacology, drug interactions, clinical phases, FDA approval processes.
+- Explain research findings in clear, accessible language.
+- Guide users on how to use the MoleculeIQ platform effectively.
+- Provide evidence-based responses and cite sources when relevant.
+
+Rules:
+- Always include a medical disclaimer when discussing drug effects or treatment suggestions.
+- Be concise but thorough. Use bullet points and structured responses.
+- If you don't know something, say so honestly.
+- Never recommend specific treatments — always redirect to healthcare professionals.
+- You can use markdown formatting (bold, lists, headers) in your responses.
+"""
+
+# Store conversation history per session (in-memory, resets on restart)
+chat_sessions = {}
+
+@app.route("/api/chat", methods=["POST"])
+def chat():
+    """Gemini-powered chatbot endpoint for MoleculeIQ assistant."""
+    if not GEMINI_API_KEY:
+        return jsonify({
+            "reply": "⚠️ **Chatbot unavailable.** The Gemini API key is not configured. "
+                     "Please add `GEMINI_API_KEY=your_key` to the `.env` file and restart the server.",
+            "error": True
+        }), 200
+
+    body = request.get_json(force=True)
+    user_message = (body.get("message") or "").strip()
+    session_id = body.get("session_id", "default")
+
+    if not user_message:
+        return jsonify({"reply": "Please enter a message.", "error": True}), 400
+
+    try:
+        # Get or create chat session
+        if session_id not in chat_sessions:
+            model = genai.GenerativeModel(
+                model_name="gemini-2.0-flash",
+                system_instruction=CHATBOT_SYSTEM_PROMPT
+            )
+            chat_sessions[session_id] = model.start_chat(history=[])
+
+        chat = chat_sessions[session_id]
+        response = chat.send_message(user_message)
+        reply_text = response.text
+
+        return jsonify({"reply": reply_text, "error": False})
+
+    except Exception as exc:
+        print(f"[Gemini Chat] Error: {exc}")
+        return jsonify({
+            "reply": f"❌ **Error:** {str(exc)}. Please try again.",
+            "error": True
+        }), 200
+
+
+@app.route("/api/chat/clear", methods=["POST"])
+def clear_chat():
+    """Clear chat session history."""
+    body = request.get_json(force=True)
+    session_id = body.get("session_id", "default")
+    if session_id in chat_sessions:
+        del chat_sessions[session_id]
+    return jsonify({"status": "cleared"})
 
 
 if __name__ == "__main__":
