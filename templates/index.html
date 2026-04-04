@@ -139,35 +139,41 @@
         </div>
       </div>
 
+      <!-- Progress Timer -->
+      <div class="timer"
+        style="font-family: var(--font-mono); color: var(--accent); margin-top: 1rem; font-size: 0.9rem; letter-spacing: 1px;">
+        Fetching data... 0s
+      </div>
+
       <!-- Steps -->
       <div class="loading-steps" aria-label="Loading steps">
         <div class="loading-step" data-icon="○" data-active="⟳">
           <span class="step-icon">○</span>
-          <span>Querying PubMed research papers…</span>
+          <span>Querying PubMed — 36 million papers...</span>
         </div>
         <div class="loading-step" data-icon="○" data-active="⟳">
           <span class="step-icon">○</span>
-          <span>Scanning ClinicalTrials.gov…</span>
+          <span>Checking ClinicalTrials — 490,000 trials...</span>
         </div>
         <div class="loading-step" data-icon="○" data-active="⟳">
           <span class="step-icon">○</span>
-          <span>Retrieving FDA drug labels…</span>
+          <span>Fetching FDA drug labels...</span>
         </div>
         <div class="loading-step" data-icon="○" data-active="⟳">
           <span class="step-icon">○</span>
-          <span>Fetching RxNorm & ChEMBL classifications…</span>
+          <span>Scanning WHO global registry...</span>
         </div>
         <div class="loading-step" data-icon="○" data-active="⟳">
           <span class="step-icon">○</span>
-          <span>Scanning global preprint servers…</span>
+          <span>Analysing ChEMBL compounds...</span>
         </div>
         <div class="loading-step" data-icon="○" data-active="⟳">
           <span class="step-icon">○</span>
-          <span>Querying international trial registries…</span>
+          <span>Merging and deduplicating data...</span>
         </div>
-        <div class="loading-step" data-icon="○" data-active="⚙️">
+        <div class="loading-step" data-icon="○" data-active="⟳">
           <span class="step-icon">○</span>
-          <span>Algorithm synthesising innovation report…</span>
+          <span>Algorithm synthesising innovation report...</span>
         </div>
       </div>
     </div>
@@ -206,6 +212,64 @@
         <div class="stat-item">
           <span class="stat-num" id="stat-classes">0</span>
           <span class="stat-label">Drug Classes</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+     INDIA DRUG INTELLIGENCE (NEW v3.0)
+     ============================================================ -->
+  <section id="india-section" aria-label="India Drug Intelligence" style="display:none; margin-bottom: 40px;">
+    <div class="container">
+      <div class="section-label">🇮🇳 India Drug Intelligence</div>
+      <div class="india-grid">
+        <!-- CDSCO Status -->
+        <div class="india-card" id="cdsco-card">
+          <div class="india-card-header">
+            <span class="india-card-icon">⚖️</span>
+            <span class="india-card-title">CDSCO Regulatory Status</span>
+          </div>
+          <div class="india-card-body">
+            <div class="india-status-badge" id="cdsco-status">Approved</div>
+            <p id="cdsco-detail">Active in Indian pharmaceutical market.</p>
+          </div>
+        </div>
+
+        <!-- NPPA Pricing -->
+        <div class="india-card" id="nppa-card">
+          <div class="india-card-header">
+            <span class="india-card-icon">💰</span>
+            <span class="india-card-title">NPPA Price Control</span>
+          </div>
+          <div class="india-card-body">
+            <div class="india-status-badge badge-blue" id="nppa-status">Non-Scheduled</div>
+            <p id="nppa-price">Market-based pricing</p>
+            <small id="nppa-category" style="opacity: 0.7;">DPCO 2013 - Others</small>
+          </div>
+        </div>
+
+        <!-- Jan Aushadhi -->
+        <div class="india-card" id="ja-card">
+          <div class="india-card-header">
+            <span class="india-card-icon">🏥</span>
+            <span class="india-card-title">Jan Aushadhi (PMBJP)</span>
+          </div>
+          <div class="india-card-body">
+            <div class="india-status-badge badge-green" id="ja-status">Not Available</div>
+            <p id="ja-price">Generic availability unknown</p>
+          </div>
+        </div>
+
+        <!-- CTRI Trials -->
+        <div class="india-card" id="ctri-card">
+          <div class="india-card-header">
+            <span class="india-card-icon">🇮🇳</span>
+            <span class="india-card-title">CTRI Clinical Trials</span>
+          </div>
+          <div class="india-card-body" id="ctri-body">
+            <p>Scanning India's Clinical Trial Registry (CTRI)…</p>
+          </div>
         </div>
       </div>
     </div>
@@ -347,6 +411,28 @@
       </div>
     </div>
   </footer>
+
+  <!-- CHATBOT WIDGET -->
+  <div id="chatbot-widget" class="chatbot-widget" aria-label="MoleculeIQ Assistant">
+    <div id="chatbot-window" class="chatbot-window hidden">
+      <div class="chatbot-header">
+        <span class="chatbot-title">🧬 MoleculeIQ Agent</span>
+        <button id="chatbot-close-btn" class="chatbot-close-btn" aria-label="Close Chat">✖</button>
+      </div>
+      <div id="chatbot-messages" class="chatbot-messages">
+        <div class="chatbot-message bot-message">
+          Hello! I am the MoleculeIQ Intelligence Agent. Ask me about any drug's regulatory status, biological mechanism, or clinical data!
+        </div>
+      </div>
+      <div class="chatbot-input-area">
+        <input type="text" id="chatbot-input" class="chatbot-input" placeholder="Ask about CDSCO status..." autocomplete="off">
+        <button id="chatbot-send-btn" class="chatbot-send-btn" aria-label="Send Message">➤</button>
+      </div>
+    </div>
+    <button id="chatbot-toggle-btn" class="chatbot-toggle-btn" aria-label="Toggle Chatbot">
+      💬
+    </button>
+  </div>
 
   <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>

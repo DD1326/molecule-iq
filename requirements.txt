@@ -2,4 +2,6 @@ flask
 requests
 gunicorn
 google-generativeai
+openai
+pydantic
 python-dotenv

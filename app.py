@@ -15,6 +15,8 @@ from flask import Flask, request, jsonify, render_template
 from dotenv import load_dotenv
 import google.generativeai as genai
 
+import sqlite3
+
 # ──────────────────────────────────────────────────────────
 #  CHATBOT ASSISTANT (Gemini AI)
 # ──────────────────────────────────────────────────────────
@@ -25,6 +27,20 @@ if GEMINI_API_KEY:
     print("[Gemini] API key loaded successfully.")
 else:
     print("[Gemini] WARNING: No GEMINI_API_KEY found in .env file. Chatbot will be disabled.")
+
+from orchestrator import Translator
+translator = Translator()
+
+def init_db():
+    try:
+        conn = sqlite3.connect('cache.db')
+        conn.execute('''CREATE TABLE IF NOT EXISTS cache
+                        (molecule TEXT PRIMARY KEY, data TEXT, date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        # Persistence enabled: No longer deleting cache on startup
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[DB] Init error: {e}")
 
 # ──────────────────────────────────────────────────────────
 #  REDIS CACHE SETUP
@@ -1084,6 +1100,25 @@ def clear_chat():
     if session_id in chat_sessions:
         del chat_sessions[session_id]
     return jsonify({"status": "cleared"})
+
+
+@app.route("/api/chat", methods=["POST"])
+def chat():
+    """
+    Handles natural language queries via the new Orchestrator
+    """
+    body = request.get_json(force=True)
+    user_query = body.get("query", "").strip()
+    
+    if not user_query:
+        return jsonify({"error": "Query cannot be empty"}), 400
+        
+    try:
+        response_data = translator.process_query(user_query)
+        return jsonify(response_data)
+    except Exception as e:
+        print(f"[Orchestrator Error]: {e}")
+        return jsonify({"error": "Failed to process query", "details": str(e)}), 500
 
 
 if __name__ == "__main__":
