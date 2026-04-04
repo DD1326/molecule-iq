@@ -17,6 +17,7 @@ const errorBanner = document.getElementById("error-banner");
 const errorMsg = document.getElementById("error-msg");
 const voiceBtn = document.getElementById("voice-btn");
 const autocompleteDropdown = document.getElementById("autocomplete-results");
+let latestAnalysisResults = null; // SCAN: Captures current page data for Chatbot
 
 const statPapers = document.getElementById("stat-papers");
 const statPreprints = document.getElementById("stat-preprints");
@@ -43,6 +44,26 @@ const reportMolName = document.getElementById("report-mol-name");
 const reportBody = document.getElementById("report-body");
 
 const loadingStepEls = document.querySelectorAll(".loading-step");
+const chatbotStatus = document.getElementById("chatbot-status");
+const statusText = document.getElementById("status-text");
+
+const bannedModal = document.getElementById("banned-modal");
+const bannedMolName = document.getElementById("banned-mol-name");
+const bannedCat = document.getElementById("banned-cat");
+const bannedReason = document.getElementById("banned-reason");
+
+function showBannedModal(data) {
+  bannedMolName.textContent = data.molecule || data.name;
+  bannedCat.textContent = data.category;
+  bannedReason.textContent = data.reason;
+  bannedModal.classList.remove("hidden");
+}
+
+function closeBannedModal() {
+  bannedModal.classList.add("hidden");
+}
+
+window.closeBannedModal = closeBannedModal;
 
 // ── Helpers ─────────────────────────────────────────────────
 
@@ -156,6 +177,22 @@ async function startAnalysis() {
   const molecule = searchInput.value.trim();
   if (!molecule) { searchInput.focus(); return; }
 
+  // ── Proactive Banned Check ──
+  try {
+    const checkRes = await fetch("/api/check-banned", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ molecule })
+    });
+    const checkData = await checkRes.json();
+    if (checkData.is_banned) {
+      showBannedModal({ ...checkData, molecule });
+      return; // Stop execution
+    }
+  } catch (err) {
+    console.warn("[SafeCheck Error]", err);
+  }
+
   // ── UI reset ──
   hideError();
   hide(statsSection);
@@ -191,10 +228,11 @@ async function startAnalysis() {
       try {
         const errJson = await res.json();
         if (errJson.error) errMsg = errJson.error;
-      } catch(e) {}
+      } catch (e) { }
       throw new Error(errMsg);
     }
     data = await res.json();
+    latestAnalysisResults = data; // Save for Chatbot scan
 
     activateStep(6);
     await sleep(600);
@@ -858,8 +896,68 @@ const chatSendBtn = document.getElementById('chatbot-send-btn');
 const chatInput = document.getElementById('chatbot-input');
 const chatMessages = document.getElementById('chatbot-messages');
 
-if (chatbotBtn && chatbotWin) {
-  chatbotBtn.addEventListener('click', () => {
+const chatbotWidget = document.getElementById('chatbot-widget');
+
+if (chatbotBtn && chatbotWin && chatbotWidget) {
+  let isDragging = false;
+  let offsetX, offsetY;
+  let dragThreshold = 5; // Pixels
+  let dragMoved = false;
+  let startX, startY;
+
+  chatbotBtn.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    dragMoved = false;
+    startX = e.clientX;
+    startY = e.clientY;
+    
+    // Calculate mouse offset from top-left of widget
+    const rect = chatbotWidget.getBoundingClientRect();
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+    
+    chatbotBtn.style.cursor = 'grabbing';
+    e.preventDefault(); // Prevent text selection
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    
+    const deltaX = Math.abs(e.clientX - startX);
+    const deltaY = Math.abs(e.clientY - startY);
+    
+    if (deltaX > dragThreshold || deltaY > dragThreshold) {
+      dragMoved = true;
+      
+      // Calculate new position
+      let newX = e.clientX - offsetX;
+      let newY = e.clientY - offsetY;
+      
+      // Keep it within viewport
+      newX = Math.max(10, Math.min(newX, window.innerWidth - chatbotWidget.offsetWidth - 10));
+      newY = Math.max(10, Math.min(newY, window.innerHeight - chatbotWidget.offsetHeight - 10));
+      
+      // Switch from right/bottom to left/top
+      chatbotWidget.style.right = 'auto';
+      chatbotWidget.style.bottom = 'auto';
+      chatbotWidget.style.left = `${newX}px`;
+      chatbotWidget.style.top = `${newY}px`;
+    }
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      chatbotBtn.style.cursor = 'pointer';
+    }
+  });
+
+  chatbotBtn.addEventListener('click', (e) => {
+    if (dragMoved) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     chatbotWin.classList.toggle('hidden');
     if (!chatbotWin.classList.contains('hidden')) {
       chatInput.focus();
@@ -873,18 +971,38 @@ if (chatCloseBtn) {
   });
 }
 
-function appendMessage(text, type='bot') {
+function appendMessage(text, type = 'bot') {
   const msgDiv = document.createElement('div');
   msgDiv.className = `chatbot-message ${type}-message`;
+
   if (type === 'bot') {
-    if (typeof marked !== 'undefined') {
-      msgDiv.innerHTML = marked.parse(text); 
-    } else {
-      msgDiv.textContent = text;
-    }
+    // 1. Parse Markdown first
+    let html = typeof marked !== 'undefined' ? marked.parse(text) : text;
+
+    // 2. Parse specialized Inline Cards
+    const cardRegex = /\[CANDIDATE:\s*(.*?)\|(.*?)\|(.*?)\|(.*?)\]/g;
+    html = html.replace(cardRegex, (match, name, cls, status, insight) => {
+      return `
+        <div class="candidate-card">
+          <h4>🧬 ${name.trim()}</h4>
+          <div class="card-meta">${cls.trim()}</div>
+          <div class="card-metric">
+            <span class="metric-key">Status</span>
+            <span class="metric-val">${status.trim()}</span>
+          </div>
+          <div class="card-metric">
+            <span class="metric-key">Key Insight</span>
+            <span class="metric-val">${insight.trim()}</span>
+          </div>
+        </div>
+      `;
+    });
+
+    msgDiv.innerHTML = html;
   } else {
-    msgDiv.textContent = text; 
+    msgDiv.textContent = text;
   }
+
   chatMessages.appendChild(msgDiv);
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }
@@ -893,43 +1011,47 @@ if (chatSendBtn && chatInput) {
   const sendMessage = async () => {
     const text = chatInput.value.trim();
     if (!text) return;
-    
+
     // Append user msg
     appendMessage(text, 'user');
     chatInput.value = '';
-    
-    // Show typing state
-    const loadingId = 'loading-' + Date.now();
-    const loadingMsg = document.createElement('div');
-    loadingMsg.className = 'chatbot-message bot-message';
-    loadingMsg.id = loadingId;
-    loadingMsg.innerHTML = '<span class="typing">...</span>';
-    chatMessages.appendChild(loadingMsg);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-    
+
+    // ── Show live agent feed ──
+    chatbotStatus.classList.remove("hidden");
+    statusText.textContent = "Orchestrator: Parsing intent...";
+
     try {
+      // Periodic status updates
+      const t1 = setTimeout(() => { if (statusText) statusText.textContent = "Clinical Agent: Checking CDSCO..."; }, 800);
+      const t2 = setTimeout(() => { if (statusText) statusText.textContent = "Patent Agent: Scanning IP landscape..."; }, 2200);
+      const t3 = setTimeout(() => { if (statusText) statusText.textContent = "Market Agent: Analyzing demand/supply..."; }, 3800);
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: text })
+        body: JSON.stringify({
+          query: text,
+          page_context: latestAnalysisResults // SCAN: Automatic page analysis
+        })
       });
+
+      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
       const data = await response.json();
-      
-      const loadElem = document.getElementById(loadingId);
-      if (loadElem) loadElem.remove();
-      
+
+      // Cleanup status feed
+      chatbotStatus.classList.add("hidden");
+
       if (data.error) {
         appendMessage('⚠️ Error: ' + data.error, 'bot');
       } else {
         appendMessage(data.agent_response || 'No response', 'bot');
       }
     } catch (err) {
-      const loadElem = document.getElementById(loadingId);
-      if (loadElem) loadElem.remove();
+      chatbotStatus.classList.add("hidden");
       appendMessage('⚠️ Network Error: ' + err.message, 'bot');
     }
   };
-  
+
   chatSendBtn.addEventListener('click', sendMessage);
   chatInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {

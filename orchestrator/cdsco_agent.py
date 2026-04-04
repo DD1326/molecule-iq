@@ -1,4 +1,5 @@
 import os
+import csv
 from openai import OpenAI
 from .schemas import ParsedQuery, AgentResponse
 from dotenv import load_dotenv
@@ -11,23 +12,42 @@ client = OpenAI(
 )
 OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "google/gemini-2.5-pro")
 
-def run_cdsco_agent(parsed_query: ParsedQuery, raw_query: str) -> AgentResponse:
+def run_cdsco_agent(parsed_query: ParsedQuery, raw_query: str, page_context: dict = None) -> AgentResponse:
     molecule = parsed_query.constraints.molecule_name or "this molecule"
     
-    # In a real scenario, this is where we would query a CDSCO csv or API
-    # For now, we will ask the LLM to generate a plausible regulatory status 
-    # response acting as the CDSCO intelligence engine.
+    # ── HARD DATA LOOKUP ──
+    csv_path = os.path.join(os.path.dirname(__file__), 'cdsco_status_2026.csv')
+    csv_status = None
+    if os.path.exists(csv_path):
+        with open(csv_path, mode='r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if molecule.lower() in row['DrugName'].lower() or row['DrugName'].lower() in molecule.lower():
+                    csv_status = row
+                    break
+
+    context_str = f"\nCURRENT PAGE DATA SCAN: {page_context}\n" if page_context else ""
     
+    status_hint = f"\nVERIFIED DATABASE MATCH: {csv_status}\n" if csv_status else ""
+
     system_prompt = f"""
-You are the CDSCO Regulatory Intelligence Agent within the MoleculeIQ platform.
-The user is asking about the regulatory status of a drug in India.
+You are the CDSCO Regulatory Intelligence Agent.
+{context_str}
+{status_hint}
+The user is asking about the regulatory status of a drug in India at the CDSCO level.
 
 User's Query: "{raw_query}"
 Identified Molecule: "{molecule}"
 
-Respond in Markdown format. Keep the answer professional, concise, and structured. 
-If you aren't 100% sure, provide the most likely regulatory status (Approved, Restricted, Banned) 
-based on general medical knowledge, but state that this is an AI synthesis.
+Your goal is to provide the OFFICIAL regulatory status (BANNED, APPROVED, or RESTRICTED).
+If there is a VERIFIED DATABASE MATCH above, prioritize that info as Hard Fact.
+If not, synthesize the status based on your medical training for the Indian market.
+
+Structure your response:
+1.  **📊 CDSCO STATUS**: [APPROVED/BANNED/RESTRICTED]
+2.  **📋 Category**: [Indication]
+3.  **⚖️ Regulatory Context**: [Reasoning]
+4.  **💡 Innovation Insight**: [Is this good for repurposing?]
 """
 
     try:

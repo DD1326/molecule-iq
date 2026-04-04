@@ -9,6 +9,7 @@ import json
 import os
 import requests
 import redis
+import csv
 import concurrent.futures
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, render_template
@@ -1065,6 +1066,37 @@ def clear_chat():
     return jsonify({"status": "cleared"})
 
 
+@app.route("/api/check-banned", methods=["POST"])
+def check_banned():
+    """
+    Proactively checks if a drug is on the CDSCO Banned list before analysis begins.
+    """
+    body = request.get_json(force=True)
+    molecule = body.get("molecule", "").strip()
+    if not molecule:
+        return jsonify({"is_banned": False})
+    
+    # Clean query (e.g. "Analgin 500mg" -> ["Analgin", "500mg"])
+    query_parts = set(molecule.lower().replace(",", "").split())
+
+    csv_path = os.path.join(os.path.dirname(__file__), 'orchestrator', 'cdsco_status_2026.csv')
+    if os.path.exists(csv_path):
+        with open(csv_path, mode='r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                db_name = row['DrugName'].lower()
+                # Check if any word in query exists in Banned DrugName OR vice versa
+                if any(word in db_name for word in query_parts) or db_name in molecule.lower():
+                    if row['Status'].upper() == "BANNED":
+                        return jsonify({
+                            "is_banned": True,
+                            "name": row['DrugName'],
+                            "reason": row['Reason'],
+                            "category": row['Category']
+                        })
+    return jsonify({"is_banned": False})
+
+
 @app.route("/api/chat", methods=["POST"])
 def chat():
     """
@@ -1072,12 +1104,13 @@ def chat():
     """
     body = request.get_json(force=True)
     user_query = body.get("query", "").strip()
+    page_context = body.get("page_context") # Data from the current research scan
     
     if not user_query:
         return jsonify({"error": "Query cannot be empty"}), 400
         
     try:
-        response_data = translator.process_query(user_query)
+        response_data = translator.process_query(user_query, page_context=page_context)
         return jsonify(response_data)
     except Exception as e:
         print(f"[Orchestrator Error]: {e}")

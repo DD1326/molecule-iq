@@ -9,12 +9,12 @@ class Translator:
     def __init__(self):
         pass
 
-    def process_query(self, user_query: str) -> dict:
+    def process_query(self, user_query: str, page_context: dict = None) -> dict:
         # Step 1: Parse the user's natural language to structured constraints
         parsed_query = parse_query(user_query)
 
-        # Step 2: Route to the appropriate agent to get a response
-        agent_response = coordinate_agent(parsed_query, user_query)
+        # Step 2: Route to the appropriate agent to get a response (with page context)
+        agent_response = coordinate_agent(parsed_query, user_query, page_context=page_context)
 
         return {
             "intent": parsed_query.intent,

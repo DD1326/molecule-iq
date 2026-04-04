@@ -3,9 +3,11 @@ from typing import Optional
 
 class Constraints(BaseModel):
     molecule_name: Optional[str] = Field(None, description="The name of the drug or molecule, e.g. Metformin, Paracetamol")
-    disease_status: Optional[str] = Field(None, description="The disease or condition being treated")
+    disease_status: Optional[str] = Field(None, description="The clinical unmet need, objective, or disease condition being treated")
     region: Optional[str] = Field(None, description="The geographical region referenced, e.g. India, US")
-    regulatory_status: Optional[str] = Field(None, description="Status like Banned, Approved, Experimental")
+    regulatory_status: Optional[str] = Field(None, description="Regulatory status required, like Approved, Banned, or Phase 3")
+    exclusions: Optional[str] = Field(None, description="Specific things to avoid or exclude, e.g. 'cardiovascular toxicity', 'pediatrics', 'high cost'")
+    price_requirement: Optional[str] = Field(None, description="Budgetary or cost constraints, e.g. 'low cost', 'affordable'")
 
 class ParsedQuery(BaseModel):
     intent: str = Field(..., description="Main intent: 'CDSCO_STATUS', 'GENERAL_MOLECULE_SEARCH', 'CLINICAL_TRIAL_SEARCH', 'PATENT_SEARCH', 'MARKET_SEARCH', or 'UNKNOWN'")

@@ -23,7 +23,8 @@ def parse_query(user_query: str) -> ParsedQuery:
     
     system_prompt = f"""
 You are an intelligent constraint parser for a drug discovery platform called MoleculeIQ.
-Your task is to analyze the user's natural language query and extract the intent and constraints.
+Your task is to analyze the user's natural language query and extract the intent and "Hard Agent Constraints." 
+A Hard Agent Constraint is a non-negotiable filter or specific requirement such as an exclusion (e.g., "avoid heart issues" -> exclude: cardiovascular toxicity) or a clinical unmet need.
 
 Possible Intents:
 - CDSCO_STATUS: User is asking about the regulatory status of a drug in India (CDSCO).

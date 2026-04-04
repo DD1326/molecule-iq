@@ -180,6 +180,35 @@
   </section>
 
   <!-- ============================================================
+     BANNED DRUG WARNING MODAL
+     ============================================================ -->
+  <div id="banned-modal" class="modal hidden" role="alert" aria-modal="true">
+    <div class="modal-content modal-warning">
+      <div class="modal-header">
+        <span class="warning-icon">🚫</span>
+        <h2 id="banned-title">Regulatory Verification Failed</h2>
+      </div>
+      <div class="modal-body">
+        <p>The molecule <strong><span id="banned-mol-name"></span></strong> is currently listed as <strong>BANNED</strong> by the Central Drugs Standard Control Organisation (CDSCO).</p>
+        <div class="warning-details">
+          <div class="warning-row">
+            <strong>📋 Category:</strong> <span id="banned-cat"></span>
+          </div>
+          <div class="warning-row">
+            <strong>⚖️ Official Reason:</strong> <span id="banned-reason"></span>
+          </div>
+        </div>
+        <p class="warning-footer">
+          Repurposing research on banned molecules is not recommended due to established safety or efficacy concerns in the target jurisdiction.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-close-modal" onclick="closeBannedModal()">I Understand</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
      STATS BAR
      ============================================================ -->
   <section id="stats-section" aria-label="Results overview">
@@ -423,6 +452,10 @@
         <div class="chatbot-message bot-message">
           Hello! I am the MoleculeIQ Intelligence Agent. Ask me about any drug's regulatory status, biological mechanism, or clinical data!
         </div>
+      </div>
+      <div id="chatbot-status" class="chatbot-status hidden">
+        <span class="status-dot"></span>
+        <span id="status-text">Agent thinking...</span>
       </div>
       <div class="chatbot-input-area">
         <input type="text" id="chatbot-input" class="chatbot-input" placeholder="Ask about CDSCO status..." autocomplete="off">

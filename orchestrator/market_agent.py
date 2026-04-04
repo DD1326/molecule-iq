@@ -8,15 +8,19 @@ client = OpenAI(
 )
 OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "google/gemini-2.0-flash")
 
-def run_market_agent(parsed_query: ParsedQuery, raw_query: str) -> AgentResponse:
+def run_market_agent(parsed_query: ParsedQuery, raw_query: str, page_context: dict = None) -> AgentResponse:
     molecule = parsed_query.constraints.molecule_name or "this molecule"
     
+    context_str = f"\nCURRENT PAGE DATA SCAN: {page_context}\n" if page_context else ""
+
     system_prompt = f"""
 You are the MoleculeIQ Market Analysis & Global Intelligence Agent.
+{context_str}
 The user is asking about the commercial landscape or availability of a drug.
 
 User's Query: "{raw_query}"
 Identified Molecule: "{molecule}"
+Hard Constraints: {parsed_query.constraints.model_dump()}
 
 Your goal is to provide a detailed, markdown-formatted market report. 
 Include (if known):
