@@ -8,7 +8,7 @@ class Constraints(BaseModel):
     regulatory_status: Optional[str] = Field(None, description="Status like Banned, Approved, Experimental")
 
 class ParsedQuery(BaseModel):
-    intent: str = Field(..., description="Main intent: 'CDSCO_STATUS', 'GENERAL_MOLECULE_SEARCH', 'CLINICAL_TRIAL_SEARCH', or 'UNKNOWN'")
+    intent: str = Field(..., description="Main intent: 'CDSCO_STATUS', 'GENERAL_MOLECULE_SEARCH', 'CLINICAL_TRIAL_SEARCH', 'PATENT_SEARCH', 'MARKET_SEARCH', or 'UNKNOWN'")
     constraints: Constraints = Field(..., description="Extracted entities and constraints from the query")
     reasoning: str = Field(..., description="Short explanation of why this intent was selected based on the user query")
 

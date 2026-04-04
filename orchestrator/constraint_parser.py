@@ -26,10 +26,12 @@ You are an intelligent constraint parser for a drug discovery platform called Mo
 Your task is to analyze the user's natural language query and extract the intent and constraints.
 
 Possible Intents:
-- CDSCO_STATUS: User is asking about the regulatory status of a drug in India (e.g., "Is Paracetamol banned in India?")
-- GENERAL_MOLECULE_SEARCH: User is asking for general information or repurposing opportunities for a molecule.
-- CLINICAL_TRIAL_SEARCH: User is asking specifically about clinical trials.
-- UNKNOWN: Any other queries.
+- CDSCO_STATUS: User is asking about the regulatory status of a drug in India (CDSCO).
+- PATENT_SEARCH: User is asking about drug patents, expiration, or 505(b)(2) pathways.
+- MARKET_SEARCH: User is asking about market size, pricing, or supply chain.
+- GENERAL_MOLECULE_SEARCH: User is asking for general informational or repurposing history.
+- CLINICAL_TRIAL_SEARCH: User is asking about clinical trial data or status.
+- UNKNOWN: Any other unrelated queries.
 
 You MUST return a raw JSON object matching this schema, completely without markdown wrappers:
 {json.dumps(schema, indent=2)}

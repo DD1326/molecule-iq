@@ -2,12 +2,14 @@ import os
 from openai import OpenAI
 from .schemas import ParsedQuery, AgentResponse
 from .cdsco_agent import run_cdsco_agent
+from .patent_agent import run_patent_agent
+from .market_agent import run_market_agent
 
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=os.environ.get("OPENROUTER_API_KEY", "dummy"),
 )
-OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "google/gemini-2.5-pro")
+OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "google/gemini-2.0-flash")
 
 def run_general_agent(parsed_query: ParsedQuery, raw_query: str) -> AgentResponse:
     molecule = parsed_query.constraints.molecule_name or "this molecule"
@@ -46,6 +48,10 @@ def coordinate_agent(parsed_query: ParsedQuery, raw_query: str) -> AgentResponse
     """
     if parsed_query.intent == "CDSCO_STATUS":
         return run_cdsco_agent(parsed_query, raw_query)
+    elif parsed_query.intent == "PATENT_SEARCH":
+        return run_patent_agent(parsed_query, raw_query)
+    elif parsed_query.intent == "MARKET_SEARCH":
+        return run_market_agent(parsed_query, raw_query)
     elif parsed_query.intent in ["GENERAL_MOLECULE_SEARCH", "CLINICAL_TRIAL_SEARCH"]:
         return run_general_agent(parsed_query, raw_query)
     else:
