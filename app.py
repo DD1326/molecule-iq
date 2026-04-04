@@ -42,6 +42,8 @@ def init_db():
     except Exception as e:
         print(f"[DB] Init error: {e}")
 
+init_db()
+
 # ──────────────────────────────────────────────────────────
 #  REDIS CACHE SETUP
 # ──────────────────────────────────────────────────────────

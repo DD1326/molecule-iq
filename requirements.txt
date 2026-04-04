@@ -5,3 +5,4 @@ google-generativeai
 openai
 pydantic
 python-dotenv
+redis
