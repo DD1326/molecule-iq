@@ -907,6 +907,13 @@ const chatMessages = document.getElementById('chatbot-messages');
 
 const chatbotWidget = document.getElementById('chatbot-widget');
 
+// ── Session Management (v2.4) ──
+let sessionId = localStorage.getItem('moleculeiq_session');
+if (!sessionId) {
+  sessionId = 'sid_' + Math.random().toString(36).substr(2, 9);
+  localStorage.setItem('moleculeiq_session', sessionId);
+}
+
 if (chatbotBtn && chatbotWin && chatbotWidget) {
   let isDragging = false;
   let offsetX, offsetY;
@@ -1060,6 +1067,7 @@ if (chatSendBtn && chatInput) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query: text,
+          session_id: sessionId,
           page_context: latestAnalysisResults // SCAN: Automatic page analysis
         })
       });

@@ -46,24 +46,36 @@ def init_db():
 init_db()
 
 # ──────────────────────────────────────────────────────────
-#  REDIS CACHE SETUP
+#  REDIS DUAL-ACCOUNT SETUP
 # ──────────────────────────────────────────────────────────
-redis_client = None
+
+# Account 1: Drug Metadata Cache (Central Instance)
+drug_redis = None
 try:
-    redis_client = redis.Redis.from_url(
+    drug_redis = redis.Redis.from_url(
         "redis://default:TZxV3ll1TrSPijtsrlRkg7BhAt0sxkgf@redis-11730.c280.us-central1-2.gce.cloud.redislabs.com:11730",
         decode_responses=True
     )
-    # Test connection
-    redis_client.ping()
-    print("[Redis] Connected securely to remote Redis server.")
+    drug_redis.ping()
+    print("[Redis-Drug] Connected to Account 1 (Metadata Cache).")
 except Exception as e:
-    print(f"[Redis] Connection error: {e}")
+    print(f"[Redis-Drug] Connection error: {e}")
+
+# Account 2: Chat Memory & Session Intelligence (Dedicated Asian Instance)
+chat_redis = None
+try:
+    # New URL provided by user for persistent conversational state
+    CHAT_URL = "redis://default:FXHOIT51uKGVj3j7H7OnQEWLaQD11pfz@redis-18882.crce289.asia-seast2-2.gcp.cloud.redislabs.com:18882"
+    chat_redis = redis.Redis.from_url(CHAT_URL, decode_responses=True)
+    chat_redis.ping()
+    print("[Redis-Chat] Connected to Account 2 (Chat/Session) in Asia-seast2.")
+except Exception as e:
+    print(f"[Redis-Chat] Connection error: {e}")
 
 def get_cached(molecule):
     try:
-        if redis_client:
-            cached_data = redis_client.get(f"cache:{molecule}")
+        if drug_redis:
+            cached_data = drug_redis.get(f"cache:{molecule}")
             if cached_data:
                 print(f"[Redis] Cache hit for {molecule}")
                 return json.loads(cached_data)
@@ -74,11 +86,36 @@ def get_cached(molecule):
 
 def set_cached(molecule, data):
     try:
-        if redis_client:
-            # Cache for 365 days (31536000 seconds)
-            redis_client.setex(f"cache:{molecule}", 31536000, json.dumps(data))
+        if drug_redis:
+            drug_redis.setex(f"cache:{molecule}", 31536000, json.dumps(data))
     except Exception as e:
         print(f"[Redis] Set cache error: {e}")
+
+# ──────────────────────────────────────────────────────────
+#  REDIS CHAT HISTORY HELPERS (Account 2)
+# ──────────────────────────────────────────────────────────
+
+def save_chat_message(session_id, role, content):
+    try:
+        if chat_redis:
+            key = f"chat:{session_id}"
+            msg = {"role": role, "content": content, "time": datetime.now().isoformat()}
+            chat_redis.rpush(key, json.dumps(msg))
+            chat_redis.ltrim(key, -10, -1) # Token-optimal window
+            chat_redis.expire(key, 86400)  # 24h history persistence
+    except Exception as e:
+        print(f"[Redis-Chat] Save error: {e}")
+
+def get_chat_history(session_id):
+    try:
+        if chat_redis:
+            key = f"chat:{session_id}"
+            msgs = chat_redis.lrange(key, 0, -1)
+            return [json.loads(m) for m in msgs]
+        return []
+    except Exception as e:
+        print(f"[Redis-Chat] Get error: {e}")
+        return []
 
 app = Flask(__name__)
 
@@ -1126,17 +1163,27 @@ def check_banned():
 @app.route("/api/chat", methods=["POST"])
 def chat():
     """
-    Handles natural language queries via the new Orchestrator
+    Handles queries via Orchestrator with memory support using the new Dedicated Chat Redis account.
     """
     body = request.get_json(force=True)
     user_query = body.get("query", "").strip()
-    page_context = body.get("page_context") # Data from the current research scan
+    session_id = body.get("session_id", "default_sess")
+    page_context = body.get("page_context")
     
     if not user_query:
         return jsonify({"error": "Query cannot be empty"}), 400
         
     try:
-        response_data = translator.process_query(user_query, page_context=page_context)
+        # Load history from Account 2
+        history = get_chat_history(session_id)
+        save_chat_message(session_id, "user", user_query)
+        
+        # Process with orchestrator
+        response_data = translator.process_query(user_query, page_context=page_context, chat_history=history)
+        
+        # Save response to Account 2
+        save_chat_message(session_id, "assistant", response_data.get("agent_response", ""))
+        
         return jsonify(response_data)
     except Exception as e:
         print(f"[Orchestrator Error]: {e}")

@@ -12,22 +12,29 @@ client = OpenAI(
 )
 OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "google/gemini-2.0-flash")
 
-def run_general_agent(parsed_query: ParsedQuery, raw_query: str, page_context: dict = None, activities: list = None) -> AgentResponse:
+def run_general_agent(parsed_query: ParsedQuery, raw_query: str, page_context: dict = None, chat_history: list = None, activities: list = None) -> AgentResponse:
     molecule = parsed_query.constraints.molecule_name or "this molecule"
     
     context_str = f"\nCURRENT PAGE DATA SCAN: {page_context}\n" if page_context else ""
+    
+    history_str = ""
+    if chat_history:
+        history_str = "\nPREVIOUS CONVERSATION HISTORY:\n"
+        for msg in chat_history[-6:]:  # Only last 6 messages
+            history_str += f"- {msg['role'].upper()}: {msg['content']}\n"
 
     system_prompt = f"""
 You are the MoleculeIQ General Intelligence Agent.
 The user is asking a question about a drug or pharmaceutical molecule.
 
 {context_str}
+{history_str}
 
 User's Query: "{raw_query}"
 Identified Molecule: "{molecule}"
 Hard Constraints: {parsed_query.constraints.model_dump()}
 
-Your goal is to answer the user's query thoughtfully. 
+Your goal is to answer the user's query thoughtfully, taking into account any previous context or constraints discussed in the chat history.
 
 INLINE CARDS:
 If you propose a specific drug candidate for repurposing, you MUST provide a "Candidate Card" summary at the end of your response using this EXACT format:
@@ -45,7 +52,7 @@ If 'CURRENT PAGE DATA SCAN' is provided above, refer to it for accuracy.
                 {"role": "system", "content": system_prompt},
             ],
             temperature=0.4,
-            max_tokens=1024
+            max_tokens=512 # Lowered from 1024 to bypass 402 credit errors
         )
         content = response.choices[0].message.content
         return AgentResponse(
@@ -60,7 +67,7 @@ If 'CURRENT PAGE DATA SCAN' is provided above, refer to it for accuracy.
             activities=activities or []
         )
 
-def coordinate_multi_agent(parsed_query: ParsedQuery, raw_query: str, page_context: dict = None) -> AgentResponse:
+def coordinate_multi_agent(parsed_query: ParsedQuery, raw_query: str, page_context: dict = None, chat_history: list = None) -> AgentResponse:
     """
     Coordinates Clinical, Patent, and Market agents in parallel for a comprehensive scan.
     """
@@ -102,15 +109,15 @@ User's Original Question: {raw_query}
 
 Please provide a master synthesis report using the specialized data above.
 """
-    return run_general_agent(parsed_query, full_intel_query, page_context, activities=activities)
+    return run_general_agent(parsed_query, full_intel_query, page_context, chat_history=chat_history, activities=activities)
 
-def coordinate_agent(parsed_query: ParsedQuery, raw_query: str, page_context: dict = None) -> AgentResponse:
+def coordinate_agent(parsed_query: ParsedQuery, raw_query: str, page_context: dict = None, chat_history: list = None) -> AgentResponse:
     """
     Routes the parsed query to the appropriate specialized agent or multi-agent scanner.
     """
     # ── For research-heavy queries, trigger the Multi-Agent Scanner ──
     if parsed_query.intent in ["GENERAL_MOLECULE_SEARCH", "CLINICAL_TRIAL_SEARCH"]:
-        return coordinate_multi_agent(parsed_query, raw_query, page_context)
+        return coordinate_multi_agent(parsed_query, raw_query, page_context, chat_history=chat_history)
     
     # ── Specific intent routing ──
     if parsed_query.intent == "CDSCO_STATUS":
@@ -127,4 +134,4 @@ def coordinate_agent(parsed_query: ParsedQuery, raw_query: str, page_context: di
         return res
     else:
         # Fallback to general agent
-        return run_general_agent(parsed_query, raw_query, page_context=page_context)
+        return run_general_agent(parsed_query, raw_query, page_context=page_context, chat_history=chat_history)
