@@ -1052,45 +1052,6 @@ Rules:
 # Store conversation history per session (in-memory, resets on restart)
 chat_sessions = {}
 
-@app.route("/api/chat", methods=["POST"])
-def chat():
-    """Gemini-powered chatbot endpoint for MoleculeIQ assistant."""
-    if not GEMINI_API_KEY:
-        return jsonify({
-            "reply": "⚠️ **Chatbot unavailable.** The Gemini API key is not configured. "
-                     "Please add `GEMINI_API_KEY=your_key` to the `.env` file and restart the server.",
-            "error": True
-        }), 200
-
-    body = request.get_json(force=True)
-    user_message = (body.get("message") or "").strip()
-    session_id = body.get("session_id", "default")
-
-    if not user_message:
-        return jsonify({"reply": "Please enter a message.", "error": True}), 400
-
-    try:
-        # Get or create chat session
-        if session_id not in chat_sessions:
-            model = genai.GenerativeModel(
-                model_name="gemini-2.0-flash",
-                system_instruction=CHATBOT_SYSTEM_PROMPT
-            )
-            chat_sessions[session_id] = model.start_chat(history=[])
-
-        chat = chat_sessions[session_id]
-        response = chat.send_message(user_message)
-        reply_text = response.text
-
-        return jsonify({"reply": reply_text, "error": False})
-
-    except Exception as exc:
-        print(f"[Gemini Chat] Error: {exc}")
-        return jsonify({
-            "reply": f"❌ **Error:** {str(exc)}. Please try again.",
-            "error": True
-        }), 200
-
 
 @app.route("/api/chat/clear", methods=["POST"])
 def clear_chat():
