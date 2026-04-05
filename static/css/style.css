@@ -991,6 +991,180 @@ body::before {
 }
 
 /* ====================================================
+   ECONOMIC VIABILITY VERDICT
+   ==================================================== */
+#viability-section {
+  padding: 20px 0 0;
+}
+
+.viability-banner {
+  border-radius: var(--radius);
+  padding: 28px 32px;
+  position: relative;
+  overflow: hidden;
+  animation: viabilitySlide 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes viabilitySlide {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.viability-banner.verdict-viable {
+  background: linear-gradient(135deg, rgba(0, 229, 160, 0.1), rgba(0, 229, 160, 0.03));
+  border: 1.5px solid rgba(0, 229, 160, 0.3);
+  box-shadow: 0 8px 40px rgba(0, 229, 160, 0.08);
+}
+
+.viability-banner.verdict-cautious {
+  background: linear-gradient(135deg, rgba(255, 208, 96, 0.1), rgba(255, 208, 96, 0.03));
+  border: 1.5px solid rgba(255, 208, 96, 0.3);
+  box-shadow: 0 8px 40px rgba(255, 208, 96, 0.08);
+}
+
+.viability-banner.verdict-rejected {
+  background: linear-gradient(135deg, rgba(255, 94, 138, 0.1), rgba(255, 94, 138, 0.03));
+  border: 1.5px solid rgba(255, 94, 138, 0.3);
+  box-shadow: 0 8px 40px rgba(255, 94, 138, 0.08);
+}
+
+.viability-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.viability-verdict-icon {
+  font-size: 2.2rem;
+  line-height: 1;
+}
+
+.viability-verdict-tag {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 4px 14px;
+  border-radius: 100px;
+  text-transform: uppercase;
+}
+
+.verdict-viable .viability-verdict-tag {
+  background: rgba(0, 229, 160, 0.15);
+  color: var(--accent);
+  border: 1px solid rgba(0, 229, 160, 0.4);
+}
+
+.verdict-cautious .viability-verdict-tag {
+  background: rgba(255, 208, 96, 0.15);
+  color: var(--accent4);
+  border: 1px solid rgba(255, 208, 96, 0.4);
+}
+
+.verdict-rejected .viability-verdict-tag {
+  background: rgba(255, 94, 138, 0.15);
+  color: var(--accent3);
+  border: 1px solid rgba(255, 94, 138, 0.4);
+}
+
+.viability-title {
+  font-family: var(--font-head);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.verdict-viable .viability-title { color: var(--accent); }
+.verdict-cautious .viability-title { color: var(--accent4); }
+.verdict-rejected .viability-title { color: var(--accent3); }
+
+.viability-reasoning {
+  font-size: 0.92rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.viability-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.viability-metric {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 14px 16px;
+  text-align: center;
+}
+
+.viability-metric-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+
+.viability-metric-value {
+  font-family: var(--font-head);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.verdict-viable .viability-metric-value { color: var(--accent); }
+.verdict-cautious .viability-metric-value { color: var(--accent4); }
+.verdict-rejected .viability-metric-value { color: var(--accent3); }
+
+.viability-score-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.viability-score-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 1s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.verdict-viable .viability-score-fill { background: var(--accent); }
+.verdict-cautious .viability-score-fill { background: var(--accent4); }
+.verdict-rejected .viability-score-fill { background: var(--accent3); }
+
+.viability-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.viability-loading .spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255,255,255,0.1);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 700px) {
+  .viability-metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ====================================================
    AI REPORT SECTION
    ==================================================== */
 #report-section {

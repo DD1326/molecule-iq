@@ -85,6 +85,19 @@ def init_db():
 
 init_db()
 
+# ── Seed a test account for local dev ──
+try:
+    conn = sqlite3.connect('cache.db')
+    conn.execute(
+        "INSERT OR REPLACE INTO students (email, roll, dept, password, status) VALUES (?, ?, ?, ?, ?)",
+        ("2023test01@svce.ac.in", "TEST01", "pharmacy", "test1234", "APPROVED")
+    )
+    conn.commit()
+    conn.close()
+    print("[DB] Test account ready: Year=2023, Register=test01, Password=test1234")
+except Exception as e:
+    print(f"[DB] Seed error: {e}")
+
 # ──────────────────────────────────────────────────────────
 #  REDIS DUAL-ACCOUNT SETUP
 # ──────────────────────────────────────────────────────────
@@ -1233,6 +1246,108 @@ def analyze():
 
     set_cached(molecule, response_data)
     return jsonify(response_data)
+
+
+@app.route("/api/cost-viability", methods=["POST"])
+def cost_viability():
+    """
+    Economic Viability Filter — Uses AI to assess whether a drug is too expensive
+    for repurposing or is a worthy candidate based on cost analysis.
+    Returns: { verdict, cost_tier, reasoning, estimated_cost, repurposing_score }
+    """
+    body = request.get_json(force=True)
+    molecule = (body.get("molecule") or "").strip()
+    chembl = body.get("chembl", {})
+    fda = body.get("fda", [])
+    trials_count = body.get("trials_count", 0)
+    papers_count = body.get("papers_count", 0)
+
+    if not molecule:
+        return jsonify({"error": "molecule is required"}), 400
+
+    # Build context for AI
+    fda_info = ""
+    if fda and len(fda) > 0:
+        fda_info = f"FDA approved. Brand: {fda[0].get('brand_name', 'N/A')}. Manufacturer: {fda[0].get('manufacturer', 'N/A')}. Route: {fda[0].get('route', 'N/A')}."
+    else:
+        fda_info = "Not FDA approved (experimental/investigational)."
+
+    chembl_info = ""
+    if chembl and chembl.get("chembl_id"):
+        chembl_info = f"ChEMBL Phase: {chembl.get('phase_label', 'N/A')}. Type: {chembl.get('type', 'N/A')}. Oral: {chembl.get('oral', 'N/A')}."
+
+    prompt = f"""You are a pharmaceutical economics expert. Analyze the drug "{molecule}" for economic viability in drug repurposing.
+
+KNOWN DATA:
+- FDA Status: {fda_info}
+- ChEMBL Data: {chembl_info}
+- Active Clinical Trials: {trials_count}
+- Published Research Papers: {papers_count}
+
+TASK: Respond with ONLY a valid JSON object (no markdown, no code fences) with these exact keys:
+{{
+  "verdict": "VIABLE" or "CAUTIOUS" or "REJECTED",
+  "cost_tier": "Low Cost" or "Moderate Cost" or "High Cost" or "Very High Cost",
+  "estimated_daily_cost_usd": "<estimated daily treatment cost as string, e.g. '$0.50 - $2.00'>",
+  "reasoning": "<2-3 sentence explanation of why this drug is/isn't viable for repurposing based on cost>",
+  "generic_available": true or false,
+  "repurposing_economic_score": <number 1-10 where 10 is most economically viable>
+}}
+
+RULES:
+- VIABLE = Drug is affordable, generic exists or patent expired, good candidate for repurposing
+- CAUTIOUS = Moderate cost, may need further cost-benefit analysis before repurposing investment
+- REJECTED = Drug is too expensive (biologics, specialty drugs >$1000/month), not economically viable for repurposing without significant investment
+- Base your analysis on known pharmaceutical pricing data for this molecule
+- Consider: generic availability, manufacturing complexity, patent status, biosimilar competition
+"""
+
+    try:
+        from openai import OpenAI
+        client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=os.environ.get("OPENROUTER_API_KEY", "dummy"),
+        )
+        model = os.environ.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
+
+        response = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+            max_tokens=512,
+        )
+        content = response.choices[0].message.content.strip()
+        # Clean markdown fences if present
+        if content.startswith("```"):
+            content = content.split("\n", 1)[1] if "\n" in content else content[3:]
+            if content.endswith("```"):
+                content = content[:-3]
+            content = content.strip()
+
+        result = json.loads(content)
+        return jsonify(result)
+
+    except json.JSONDecodeError as e:
+        print(f"[CostViability] JSON parse error: {e}, raw: {content[:200]}")
+        # Fallback heuristic
+        return jsonify({
+            "verdict": "CAUTIOUS",
+            "cost_tier": "Unknown",
+            "estimated_daily_cost_usd": "N/A",
+            "reasoning": f"Unable to determine precise cost data for {molecule}. Manual cost-benefit analysis recommended before repurposing investment.",
+            "generic_available": False,
+            "repurposing_economic_score": 5
+        })
+    except Exception as e:
+        print(f"[CostViability] Error: {e}")
+        return jsonify({
+            "verdict": "CAUTIOUS",
+            "cost_tier": "Unknown",
+            "estimated_daily_cost_usd": "N/A",
+            "reasoning": f"Cost analysis service unavailable. Consider manual pricing research for {molecule}.",
+            "generic_available": False,
+            "repurposing_economic_score": 5
+        })
 
 
 @app.route("/stream_analysis", methods=["POST"])

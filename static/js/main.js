@@ -199,6 +199,7 @@ async function startAnalysis() {
   hide(dataSection);
   hide(reportSection);
   hide(document.getElementById('feedback-section'));
+  hide(document.getElementById('viability-section'));
   show(loadingSection);
   analyzeBtn.disabled = true;
   hideAutocomplete(); // Ensure cleanup
@@ -262,6 +263,9 @@ async function startAnalysis() {
 
   show(statsSection);
   show(dataSection);
+
+  // ── Trigger Economic Viability Check (async, non-blocking) ──
+  fetchCostViability(molecule, data);
 
   // ── Generate report from real data ──
   show(reportSection);
@@ -895,6 +899,106 @@ function simpleMarkdown(md) {
 // ── PDF Export ───────────────────────────────────────────────
 
 function exportReport() { window.print(); }
+
+// ── Economic Viability Check ─────────────────────────────────
+
+async function fetchCostViability(molecule, data) {
+  const section = document.getElementById('viability-section');
+  const banner = document.getElementById('viability-banner');
+  if (!section || !banner) return;
+
+  // Show loading state
+  show(section);
+  banner.className = 'viability-banner';
+  banner.innerHTML = `
+    <div class="viability-loading">
+      <div class="spinner"></div>
+      <span>Analyzing economic viability for <strong>${molecule}</strong>…</span>
+    </div>`;
+
+  try {
+    const response = await fetch('/api/cost-viability', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        molecule: molecule,
+        chembl: data.chembl || {},
+        fda: data.fda_labels || [],
+        trials_count: (data.clinical_trials || []).length,
+        papers_count: (data.papers || []).length,
+      })
+    });
+
+    const result = await response.json();
+    renderViabilityBanner(banner, result, molecule);
+  } catch (err) {
+    banner.innerHTML = `<div class="viability-loading" style="color:var(--accent3);">⚠️ Economic analysis unavailable: ${err.message}</div>`;
+  }
+}
+
+function renderViabilityBanner(banner, data, molecule) {
+  const verdict = (data.verdict || 'CAUTIOUS').toUpperCase();
+  const verdictClass = verdict === 'VIABLE' ? 'verdict-viable'
+    : verdict === 'REJECTED' ? 'verdict-rejected'
+    : 'verdict-cautious';
+
+  const icon = verdict === 'VIABLE' ? '✅' : verdict === 'REJECTED' ? '🚫' : '⚠️';
+  const title = verdict === 'VIABLE'
+    ? `${molecule} — Repurposing Worthy`
+    : verdict === 'REJECTED'
+    ? `${molecule} — Too Expensive for Repurposing`
+    : `${molecule} — Requires Cost-Benefit Analysis`;
+
+  const score = data.repurposing_economic_score || 5;
+  const scorePercent = score * 10;
+
+  banner.className = `viability-banner ${verdictClass}`;
+  banner.innerHTML = `
+    <div class="viability-header">
+      <span class="viability-verdict-icon">${icon}</span>
+      <div>
+        <span class="viability-verdict-tag">${verdict}</span>
+        <h3 class="viability-title">${title}</h3>
+      </div>
+    </div>
+    <p class="viability-reasoning">${data.reasoning || 'No reasoning provided.'}</p>
+    <div class="viability-metrics">
+      <div class="viability-metric">
+        <div class="viability-metric-label">Verdict</div>
+        <div class="viability-metric-value">${verdict}</div>
+      </div>
+      <div class="viability-metric">
+        <div class="viability-metric-label">Cost Tier</div>
+        <div class="viability-metric-value">${data.cost_tier || 'N/A'}</div>
+      </div>
+      <div class="viability-metric">
+        <div class="viability-metric-label">Est. Daily Cost</div>
+        <div class="viability-metric-value">${data.estimated_daily_cost_usd || 'N/A'}</div>
+      </div>
+      <div class="viability-metric">
+        <div class="viability-metric-label">Generic Available</div>
+        <div class="viability-metric-value">${data.generic_available ? 'Yes ✓' : 'No ✗'}</div>
+      </div>
+    </div>
+    <div style="margin-top:16px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+        <span style="font-size:0.75rem; color:var(--text-muted); font-family:var(--font-mono); text-transform:uppercase; letter-spacing:0.08em;">Economic Score</span>
+        <span style="font-size:0.85rem; font-weight:700;">${score}/10</span>
+      </div>
+      <div class="viability-score-bar">
+        <div class="viability-score-fill" style="width:0%;" id="score-fill"></div>
+      </div>
+    </div>
+  `;
+
+  // Animate the score bar
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const fill = document.getElementById('score-fill');
+      if (fill) fill.style.width = `${scorePercent}%`;
+    });
+  });
+}
 
 // ── Event Listeners ──────────────────────────────────────────
 
