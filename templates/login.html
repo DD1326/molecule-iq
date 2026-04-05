@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Login — MoleculeIQ</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+      background-color: var(--bg);
+    }
+
+    .login-wrapper {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 420px;
+      padding: 40px;
+      background: rgba(13, 17, 32, 0.6);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), var(--glow2);
+      text-align: center;
+      animation: slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes slide-up {
+      0% {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .login-logo {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+
+    .login-logo svg {
+      width: 48px;
+      height: 48px;
+    }
+
+    .login-title {
+      font-family: var(--font-head);
+      font-size: 1.8rem;
+      font-weight: 800;
+      line-height: 1.2;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #fff, rgba(255, 255, 255, 0.7));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .login-subtitle {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      margin-bottom: 30px;
+    }
+
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      text-align: left;
+    }
+
+    .input-group label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      font-weight: 500;
+      font-family: var(--font-mono);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .login-input {
+      width: 100%;
+      background: rgba(6, 8, 16, 0.5);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      color: var(--text);
+      font-size: 1rem;
+      font-family: var(--font-body);
+      transition: all var(--transition);
+      outline: none;
+    }
+
+    .login-input:focus {
+      border-color: var(--accent2);
+      box-shadow: 0 0 0 2px rgba(0, 149, 255, 0.15);
+      background: rgba(6, 8, 16, 0.8);
+    }
+
+    .btn-login {
+      margin-top: 10px;
+      background: linear-gradient(135deg, var(--accent2), #006aff);
+      color: #fff;
+      font-family: var(--font-head);
+      font-size: 1rem;
+      font-weight: 700;
+      padding: 16px;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: all var(--transition);
+      box-shadow: 0 8px 20px rgba(0, 149, 255, 0.25);
+    }
+
+    .btn-login:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 24px rgba(0, 149, 255, 0.4);
+    }
+
+    .btn-login:active {
+      transform: translateY(0);
+    }
+
+    .university-badges {
+      margin-top: 30px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .university-badges .badge {
+      font-size: 0.75rem;
+      padding: 6px 14px;
+    }
+
+    /* Override orbs to frame the login box nicely */
+    .orb-blue {
+      top: -10vh;
+      right: -10vw;
+      width: 80vh;
+      height: 80vh;
+    }
+
+    .orb-green {
+      bottom: -10vh;
+      left: -10vw;
+      width: 70vh;
+      height: 70vh;
+    }
+
+    .flash-error {
+      background: rgba(255, 94, 138, 0.1);
+      border: 1px solid var(--accent3);
+      color: var(--accent3);
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Background Orbs -->
+  <div class="orb orb-blue"></div>
+  <div class="orb orb-green"></div>
+
+  <div class="login-wrapper">
+    <div class="login-logo">
+      <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="18" cy="18" r="4.5" fill="#00e5a0" />
+        <circle cx="7" cy="10" r="3" fill="#0095ff" />
+        <circle cx="29" cy="10" r="3" fill="#0095ff" />
+        <circle cx="7" cy="26" r="3" fill="#ff5e8a" />
+        <circle cx="29" cy="26" r="3" fill="#ffd060" />
+        <line x1="10.5" y1="12.1" x2="15.2" y2="15.5" stroke="#00e5a0" stroke-width="1.5" stroke-linecap="round" />
+        <line x1="25.5" y1="12.1" x2="20.8" y2="15.5" stroke="#0095ff" stroke-width="1.5" stroke-linecap="round" />
+        <line x1="10.5" y1="23.9" x2="15.2" y2="20.5" stroke="#ff5e8a" stroke-width="1.5" stroke-linecap="round" />
+        <line x1="25.5" y1="23.9" x2="20.8" y2="20.5" stroke="#ffd060" stroke-width="1.5" stroke-linecap="round" />
+      </svg>
+    </div>
+
+    <h1 class="login-title">MoleculeIQ Portal</h1>
+    <p class="login-subtitle">Sign in to access the autonomous research orchestrator.</p>
+
+    {% if error %}
+    <div class="flash-error">{{ error }}</div>
+    {% endif %}
+
+    <form class="login-form" method="POST" action="{{ url_for('login') }}">
+      <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 15px;">
+        <div class="input-group">
+          <label for="joining_year">Year</label>
+          <input type="text" id="joining_year" name="joining_year" class="login-input" placeholder="e.g. 2023"
+            required autofocus />
+        </div>
+        <div class="input-group">
+          <label for="register_number">Register Number</label>
+          <input type="text" id="register_number" name="register_number" class="login-input" placeholder="e.g. cs0324"
+            required />
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label for="department">Department</label>
+        <select id="department" name="department" class="login-input" required style="background: rgba(6, 8, 16, 0.8); color: var(--text);">
+          <option value="" disabled selected>Select Department</option>
+          <option value="pharmacy">Pharmacy</option>
+          <option value="engineering">Engineering</option>
+          <option value="science">Science</option>
+        </select>
+      </div>
+
+      <div class="input-group">
+        <label for="password">Password (Min 8 characters)</label>
+        <input type="password" id="password" name="password" class="login-input" placeholder="••••••••" minlength="8" required />
+      </div>
+
+      <button type="submit" class="btn-login">Sign In / Request Access ➔</button>
+    </form>
+
+    <div class="university-badges">
+      <span class="badge badge-blue">Sri Venkateswara College of Engineering</span>
+      <span class="badge badge-green">AI Avengers · Blueprints 2026</span>
+    </div>
+  </div>
+
+</body>
+
+</html>
