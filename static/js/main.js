@@ -198,6 +198,7 @@ async function startAnalysis() {
   hide(statsSection);
   hide(dataSection);
   hide(reportSection);
+  hide(document.getElementById('feedback-section'));
   show(loadingSection);
   analyzeBtn.disabled = true;
   hideAutocomplete(); // Ensure cleanup
@@ -274,6 +275,14 @@ async function startAnalysis() {
 
   await sleep(1400);
   generateSmartReport(molecule, data);
+
+  // ── Show Feedback / Clarify Doubts section ──
+  const feedbackSection = document.getElementById('feedback-section');
+  const feedbackConvo = document.getElementById('feedback-conversation');
+  if (feedbackSection) {
+    feedbackConvo.innerHTML = ''; // Clear previous Q&A
+    show(feedbackSection);
+  }
 
   markAllStepsDone();
   hide(loadingSection);
@@ -1096,3 +1105,74 @@ if (chatSendBtn && chatInput) {
     }
   });
 }
+
+// ============================================================
+// FEEDBACK / CLARIFY DOUBTS — Inline Q&A
+// ============================================================
+(function () {
+  const feedbackInput = document.getElementById('feedback-input');
+  const feedbackSendBtn = document.getElementById('feedback-send-btn');
+  const feedbackConvo = document.getElementById('feedback-conversation');
+  const feedbackTyping = document.getElementById('feedback-typing');
+
+  if (!feedbackInput || !feedbackSendBtn) return;
+
+  function addFeedbackMsg(text, type) {
+    const div = document.createElement('div');
+    div.className = `feedback-msg ${type}-msg`;
+    if (type === 'bot' && typeof marked !== 'undefined') {
+      div.innerHTML = marked.parse(text);
+    } else {
+      div.textContent = text;
+    }
+    feedbackConvo.appendChild(div);
+    feedbackConvo.scrollTop = feedbackConvo.scrollHeight;
+  }
+
+  async function sendFeedbackQuestion() {
+    const text = feedbackInput.value.trim();
+    if (!text) return;
+
+    addFeedbackMsg(text, 'user');
+    feedbackInput.value = '';
+    feedbackInput.disabled = true;
+    feedbackSendBtn.disabled = true;
+
+    // Show typing
+    feedbackTyping.classList.remove('hidden');
+    feedbackConvo.scrollTop = feedbackConvo.scrollHeight;
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: text,
+          session_id: sessionId,
+          page_context: latestAnalysisResults
+        })
+      });
+
+      const data = await response.json();
+      feedbackTyping.classList.add('hidden');
+
+      if (data.error) {
+        addFeedbackMsg('⚠️ Error: ' + data.error, 'bot');
+      } else {
+        addFeedbackMsg(data.agent_response || 'No response received.', 'bot');
+      }
+    } catch (err) {
+      feedbackTyping.classList.add('hidden');
+      addFeedbackMsg('⚠️ Network error: ' + err.message, 'bot');
+    }
+
+    feedbackInput.disabled = false;
+    feedbackSendBtn.disabled = false;
+    feedbackInput.focus();
+  }
+
+  feedbackSendBtn.addEventListener('click', sendFeedbackQuestion);
+  feedbackInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendFeedbackQuestion();
+  });
+})();

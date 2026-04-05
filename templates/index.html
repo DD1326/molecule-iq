@@ -417,6 +417,39 @@
   </section>
 
   <!-- ============================================================
+     FEEDBACK / CLARIFY DOUBTS SECTION
+     ============================================================ -->
+  <section id="feedback-section" aria-label="Clarify your doubts" style="display:none;">
+    <div class="container">
+      <div class="feedback-box">
+        <div class="feedback-header">
+          <span class="feedback-icon">💬</span>
+          <div>
+            <h3 class="feedback-title">Have Questions? Clarify Your Doubts</h3>
+            <p class="feedback-subtitle">Ask anything about this drug — mechanisms, side effects, interactions, clinical trials, or repurposing potential.</p>
+          </div>
+        </div>
+        <div id="feedback-conversation" class="feedback-conversation">
+          <!-- Chat messages appear here -->
+        </div>
+        <div id="feedback-typing" class="feedback-typing hidden">
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+          <span class="typing-label">MoleculeIQ is thinking…</span>
+        </div>
+        <div class="feedback-input-area">
+          <input type="text" id="feedback-input" class="feedback-input"
+            placeholder="e.g. What are the side effects? Is it safe during pregnancy?" autocomplete="off" />
+          <button id="feedback-send-btn" class="feedback-send-btn" aria-label="Ask Question">
+            Ask →
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
      FOOTER
      ============================================================ -->
   <footer class="site-footer" role="contentinfo">
