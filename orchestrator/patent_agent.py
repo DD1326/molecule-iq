@@ -30,6 +30,8 @@ Include (if known):
 - Recent patent litigation or brand name transitions.
 
 Keep the response highly structured with bullet points. Cite sources like 'USPTO' or 'Orange Book' when applicable.
+
+At the very end of your response, always add a friendly prompt encouraging the user to ask further questions to clarify any doubts they might have about the drugs or the information provided. Make it sound vague but inviting, for example: "Feel free to ask any questions in the box below to clarify any doubts about the drugs or my reply!"
 """
 
     try:

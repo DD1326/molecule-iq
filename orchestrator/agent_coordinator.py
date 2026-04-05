@@ -43,6 +43,8 @@ If you propose a specific drug candidate for repurposing, you MUST provide a "Ca
 Example: [CANDIDATE: Metformin | Biguanide | Phase 3 for Aging | AMPK Activator with anti-inflammatory properties]
 
 If 'CURRENT PAGE DATA SCAN' is provided above, refer to it for accuracy.
+
+At the very end of your response, always add a friendly prompt encouraging the user to ask further questions to clarify any doubts they might have about the drugs or the information provided. Make it sound vague but inviting, for example: "Feel free to ask any questions in the box below to clarify any doubts about the drugs or my reply!"
 """
 
     try:

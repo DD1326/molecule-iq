@@ -48,6 +48,8 @@ Structure your response:
 2.  **📋 Category**: [Indication]
 3.  **⚖️ Regulatory Context**: [Reasoning]
 4.  **💡 Innovation Insight**: [Is this good for repurposing?]
+
+At the very end of your response, always add a friendly prompt encouraging the user to ask further questions to clarify any doubts they might have about the drugs or the information provided. Make it sound vague but inviting, for example: "Feel free to ask any questions in the box below to clarify any doubts about the drugs or my reply!"
 """
 
     try:
