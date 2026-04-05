@@ -748,6 +748,36 @@ def _parse_chembl_result(mols: list) -> dict:
         "retrieved":   datetime.now().strftime("%Y-%m-%d %H:%M")
     }
 
+def fetch_similarity_chembl(chembl_id: str, similarity_cutoff: int = 85) -> list:
+    """Fetch structurally similar molecules from ChEMBL."""
+    similar_mols = []
+    if not chembl_id or chembl_id == "N/A":
+        return []
+    
+    try:
+        url = f"https://www.ebi.ac.uk/chembl/api/data/similarity/{chembl_id}/{similarity_cutoff}.json"
+        params = {"limit": 5}
+        resp = requests.get(url, params=params, timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            mols = data.get("molecules", [])
+            for m in mols:
+                # Skip the original molecule
+                if m.get("molecule_chembl_id") == chembl_id:
+                    continue
+                
+                similar_mols.append({
+                    "chembl_id": m.get("molecule_chembl_id"),
+                    "name": m.get("pref_name") or "Unknown Compound",
+                    "similarity": m.get("similarity"),
+                    "max_phase": m.get("max_phase"),
+                    "url": f"https://www.ebi.ac.uk/chembl/compound_report_card/{m.get('molecule_chembl_id','')}"
+                })
+    except Exception as exc:
+        print(f"[ChEMBL Similarity] Error: {exc}")
+    
+    return similar_mols[:5]
+
 
 def _get_highest_phase_from_trials(trials: list) -> str:
     """Extract highest clinical trial phase from trials list."""
@@ -1178,9 +1208,12 @@ def analyze():
     if cached:
         return jsonify(cached)
 
+    # ChEMBL data — fetch to get structural properties & clinical phase
+    chembl = fetch_chembl(molecule)
+
     # ── Parallel Execution for Performance ──
-    # Runs 11+ APIs concurrently. Total time = slowest API (WHO/Trials).
-    with concurrent.futures.ThreadPoolExecutor(max_workers=14) as executor:
+    # Runs 12+ APIs concurrently. Total time = slowest API (WHO/Trials).
+    with concurrent.futures.ThreadPoolExecutor(max_workers=15) as executor:
         f_pubmed = executor.submit(fetch_pubmed_papers, molecule)
         f_trials = executor.submit(fetch_clinical_trials, molecule)
         f_fda = executor.submit(fetch_fda_labels, molecule)
@@ -1192,6 +1225,7 @@ def analyze():
         f_ss = executor.submit(fetch_semantic_scholar, molecule)
         f_cr = executor.submit(fetch_crossref, molecule)
         f_who = executor.submit(fetch_who_trials, molecule)
+        f_sim = executor.submit(fetch_similarity_chembl, chembl.get("chembl_id") if chembl else None)
         
         # Retrieve results
         papers = f_pubmed.result() or []
@@ -1205,9 +1239,7 @@ def analyze():
         semantic_scholar = f_ss.result() or []
         crossref = f_cr.result() or []
         who_trials = f_who.result() or []
-
-    # ChEMBL data — fetch to get structural properties & clinical phase
-    chembl = fetch_chembl(molecule)
+        similarity = f_sim.result() or []
 
     # ── VALIDATE DRUG/MOLECULE ──
     # If no FDA records, no ChEMBL ID, and no RxNorm CUI, it's not a recognized drug.
@@ -1241,6 +1273,7 @@ def analyze():
         "chembl": chembl,
         "adverse_events": adverse_events,
         "dailymed": dailymed,
+        "similarity": similarity,
         "experimental_banner": experimental_banner,
     }
 
@@ -1403,7 +1436,8 @@ TASK:
 1. Summarize the mechanism of action.
 2. List 3 potential new diseases this drug could treat.
 3. Highlight clinical safety concerns from FAERS or DailyMed data if present.
-4. Conclude with: "Research suggests clinical interest in [Conditions] based on current trial trajectory."
+4. Combination Synergies: Suggest 2-3 drug combinations (using {molecule} as a base) that could potentially enhance therapeutic efficacy or overcome resistance, citing the rationale.
+5. Conclude with: "Research suggests clinical interest in [Conditions] based on current trial trajectory."
 """
     return jsonify({"prompt": prompt})
 

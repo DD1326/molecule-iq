@@ -189,7 +189,8 @@
         <h2 id="banned-title">Regulatory Verification Failed</h2>
       </div>
       <div class="modal-body">
-        <p>The molecule <strong><span id="banned-mol-name"></span></strong> is currently listed as <strong>BANNED</strong> by the Central Drugs Standard Control Organisation (CDSCO).</p>
+        <p>The molecule <strong><span id="banned-mol-name"></span></strong> is currently listed as
+          <strong>BANNED</strong> by the Central Drugs Standard Control Organisation (CDSCO).</p>
         <div class="warning-details">
           <div class="warning-row">
             <strong>📋 Category:</strong> <span id="banned-cat"></span>
@@ -199,7 +200,8 @@
           </div>
         </div>
         <p class="warning-footer">
-          Repurposing research on banned molecules is not recommended due to established safety or efficacy concerns in the target jurisdiction.
+          Repurposing research on banned molecules is not recommended due to established safety or efficacy concerns in
+          the target jurisdiction.
         </p>
       </div>
       <div class="modal-footer">
@@ -400,6 +402,18 @@
           </div>
         </div>
 
+        <!-- Similarity & Combinations Card (NEW) -->
+        <div class="card" id="similarity-card">
+          <div class="card-header">
+            <span class="card-icon">🧬</span>
+            <span class="card-title">Molecular Similarity</span>
+            <span class="card-count" id="similarity-count">0</span>
+          </div>
+          <div class="card-body" id="similarity-body">
+            <!-- populated by JS -->
+          </div>
+        </div>
+
       </div><!-- / data-grid row 2 -->
     </div>
   </section>
@@ -437,7 +451,8 @@
           <span class="feedback-icon">💬</span>
           <div>
             <h3 class="feedback-title">Have Questions? Clarify Your Doubts</h3>
-            <p class="feedback-subtitle">Ask anything about this drug — mechanisms, side effects, interactions, clinical trials, or repurposing potential.</p>
+            <p class="feedback-subtitle">Ask anything about this drug — mechanisms, side effects, interactions, clinical
+              trials, or repurposing potential.</p>
           </div>
         </div>
         <div id="feedback-conversation" class="feedback-conversation">
@@ -494,7 +509,8 @@
       </div>
       <div id="chatbot-messages" class="chatbot-messages">
         <div class="chatbot-message bot-message">
-          Hello! I am the MoleculeIQ Intelligence Agent. Ask me about any drug's regulatory status, biological mechanism, or clinical data!
+          Hello! I am the MoleculeIQ Intelligence Agent. Ask me about any drug's regulatory status, biological
+          mechanism, or clinical data!
         </div>
       </div>
       <div id="chatbot-status" class="chatbot-status hidden">
@@ -502,7 +518,8 @@
         <span id="status-text">Agent thinking...</span>
       </div>
       <div class="chatbot-input-area">
-        <input type="text" id="chatbot-input" class="chatbot-input" placeholder="Ask about CDSCO status..." autocomplete="off">
+        <input type="text" id="chatbot-input" class="chatbot-input" placeholder="Ask about CDSCO status..."
+          autocomplete="off">
         <button id="chatbot-send-btn" class="chatbot-send-btn" aria-label="Send Message">➤</button>
       </div>
     </div>

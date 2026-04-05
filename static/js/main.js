@@ -39,6 +39,8 @@ const fdaCount = document.getElementById("fda-count");
 const rxnormCount = document.getElementById("rxnorm-count");
 const preprintsCount = document.getElementById("preprints-count");
 const chemblCount = document.getElementById("chembl-count");
+const similarityCount = document.getElementById("similarity-count");
+const similarityBody = document.getElementById("similarity-body");
 
 const reportMolName = document.getElementById("report-mol-name");
 const reportBody = document.getElementById("report-body");
@@ -260,6 +262,7 @@ async function startAnalysis() {
   renderRxNorm(data.rxnorm || {}, data.chembl || {});
   renderPreprints(data.preprints || []);
   renderChEMBL(data.chembl || {}, data.rxnorm || {});
+  renderSimilarity(data.similarity || []);
 
   show(statsSection);
   show(dataSection);
@@ -672,6 +675,31 @@ function renderChEMBL(chembl, rxnorm) {
     </div>`;
 }
 
+// ── Render: Molecular Similarity ─────────────────────────────
+
+function renderSimilarity(similarity) {
+  if (!similarityCount) return;
+  similarityCount.textContent = similarity.length;
+  
+  if (!similarity.length) {
+    similarityBody.innerHTML = emptyState("🧬", "No structurally similar molecules found in ChEMBL");
+    return;
+  }
+  
+  similarityBody.innerHTML = similarity.map(s => `
+    <div class="similarity-item">
+      <div class="similarity-header">
+        <a href="${escHtml(s.url)}" target="_blank" rel="noopener" class="similarity-name">
+          ${escHtml(s.name)}
+        </a>
+        <span class="similarity-percent">${escHtml(s.similarity)}% MATCH</span>
+      </div>
+      <div class="similarity-meta">
+        ChEMBL ID: ${escHtml(s.chembl_id)} · Max Phase: ${escHtml(s.max_phase || "0")}
+      </div>
+    </div>`).join("");
+}
+
 // ════════════════════════════════════════════════════════════
 //  SMART REPORT GENERATOR v2
 //  Now references all 10 data sources.
@@ -742,7 +770,7 @@ function generateSmartReport(molecule, data) {
     ? ae.map(a => `- **${a.term}**: ${a.count} reported cases`).join("\n")
     : "No specific adverse events flagged in openFDA FAERS.";
 
-  // ── 7-section report ──
+  // ── 9-section report ──
   const report = `> **⚠️ MEDICAL DISCLAIMER:** This report is for research purposes only. Always consult a licensed physician before making any medical decisions. Clinical data indicates historical trends, not personal recommendations.
 
 ## 1. Executive Summary
@@ -774,16 +802,35 @@ ${latestPaper
       ? `The most recent publication — *"${latestPaper.title}"* (${latestPaper.year}, ${latestPaper.source || "PubMed"}) — represents the current scientific frontier for this molecule.`
       : `Publication records confirm ongoing research interest, though literature volume suggests an early-stage opportunity.`}
 
-As a **${classStr}** compound, clinical data indicates ${molecule} shares mechanistic properties with related agents (${relatedStr}), providing cross-indication precedent. Research suggests priority repurposing candidates include:
+---
 
-- Conditions sharing molecular targets with the primary indication
-- Diseases where related drugs have demonstrated efficacy
-- Combination therapy regimens requiring complementary mechanistic activity
-- Rare diseases qualifying for Orphan Drug Designation
+## 4. Molecular Similarity & Structural Analogs (ChEMBL)
+
+Based on structural fingerprints, the following molecules demonstrate high similarity to **${molecule}**:
+
+${data.similarity && data.similarity.length > 0 
+  ? data.similarity.map(s => `- **${s.name}** (${s.similarity}% similarity, Max Phase ${s.max_phase || 0})`).join("\n") 
+  : "No high-confidence structural analogs found in the primary repurposing database."}
+
+Similarity analysis predicts off-target effects and identifies "scaffold-hopping" opportunities where structurally distinct molecules target the same biological pathways.
 
 ---
 
-## 4. Clinical Development Status
+## 5. Combination Synergies & Modern Cures
+
+The future of drug discovery lies in **Combination Therapy**. By combining ${molecule} with synergistic agents, researchers can potentially achieve higher efficacy with lower dosages and reduced toxicity.
+
+**Potential Pairing Strategies:**
+- **Metabolic regulation** (Pairing with AMPK activators if ${molecule} is metabolic)
+- **Anti-proliferative regimens** (Pairing with kinase inhibitors)
+- **Immunomodulatory pathways** (Pairing with checkpoint inhibitors)
+
+> [!TIP]
+> **AI Suggestion:** Use the "MoleculeIQ Assistant" below to ask specifically about "Synergistic combinations for ${molecule}" to get real-time AI-predicted pairing rationales based on recent mechanistic studies.
+
+---
+
+## 6. Clinical Development Status
 
 **${trialCount} clinical studies** are registered across registries for ${molecule}:
 
@@ -799,65 +846,48 @@ As a **${classStr}** compound, clinical data indicates ${molecule} shares mechan
 **Registry coverage:** ${usaTrials} USA (ClinicalTrials.gov) · ${globalTrials} Global (WHO ICTRP)
 
 ${recruitingTrials > 0
-      ? `**Opportunity:** ${recruitingTrials} actively recruiting trial(s) offer partnership and co-investment possibilities with data-sharing agreements.`
+      ? `**Opportunity:** ${recruitingTrials} actively recruiting trial(s) offer partnership and co-investment possibilities.`
       : completedTrials > 0
-        ? `**Opportunity:** ${completedTrials} completed trial(s) provide existing safety and efficacy data suitable for meta-analysis and 505(b)(2) submissions.`
-        : "All registered trials are in planning or concluded stages — baseline data collection is recommended."}
-${terminatedTrials > 0 ? `\n**Risk note:** ${terminatedTrials} terminated trial(s) require investigation to rule out safety signals before repurposing investment.` : ""}
+        ? `**Opportunity:** ${completedTrials} completed trial(s) provide existing safety and efficacy data suitable for meta-analysis.`
+        : "All registered trials are in planning or concluded stages."}
 
 ---
 
-## 5. Patent & Market Opportunity
+## 7. Patent & Market Opportunity
 
-${molecule} qualifies for the **FDA 505(b)(2) regulatory pathway**, leveraging existing safety data to reduce approval time by an estimated **3–5 years** versus full NDA submission.
+${molecule} qualifies for the **FDA 505(b)(2) regulatory pathway**, leveraging existing safety data to reduce approval time by an estimated **3–5 years**.
 
 **Key opportunities:**
-- **Method-of-use patents** — Novel indications identified from this data analysis may be patentable even if the base compound is off-patent, providing 20-year exclusivity
-- **Orphan Drug Designation** — If target conditions (${allConditions.slice(0, 2).join(", ") || "identified indications"}) qualify, grants 7-year market exclusivity + 50% R&D tax credits
-- **Generic positioning** — ${manufacturer !== "multiple manufacturers" ? `${manufacturer} manufactures the compound` : "Multiple manufacturers signal cost-accessible supply chains"}, enabling competitive COGS for new indication launches
-- **Drug class precedent** — Related agents (${relatedStr.split(",")[0] || "comparable drugs"}) establish market size benchmarks and reimbursement pathways
+- **Method-of-use patents** — Novel indications identified may be patentable
+- **Orphan Drug Designation** — Grants 7-year market exclusivity if targeting rare diseases
+- **Generic positioning** — ${manufacturer !== "multiple manufacturers" ? `${manufacturer} manufactures the compound` : "Multiple manufacturers signal cost-accessible supply chains"}
 
 ---
 
-## 6. Risk Assessment
+## 8. Risk Assessment
 
 **🔬 Technical & Safety Risks**
-- Off-target effects in new patient populations may require additional Phase I safety studies (+12–24 months)
+- Off-target effects in new patient populations
 - PK/PD profile may differ in new indications
-${terminatedTrials > 0 ? `- **⚠️ ${terminatedTrials} terminated trial(s)** require root-cause analysis` : "- No terminated trials detected based on available search data."}
-
-**Top Reported Adverse Events (openFDA FAERS):**
+- **Reported Adverse Events (openFDA FAERS):**
 ${aeStr}
 
 **💼 Commercial Risks**
-- Generic availability limits pricing power; strong IP strategy is essential before repurposing investment
-- ${paperCount >= 5 ? `High publication volume (${paperCount} papers across ${paperSources.length} databases) signals competitive awareness — first-mover speed is critical` : `Low literature volume may reflect early-stage opportunity or limited scientific interest`}
-
-**⚖️ Regulatory Risks**
-- Extrapolating existing safety data to new patient populations requires FDA validation
-- Investigator-initiated trials (common in repurposing) may not meet regulatory evidentiary standards
+- Generic availability limits pricing power
+- ${paperCount >= 5 ? `High publication volume signals competitive awareness` : `Low literature volume may reflect early-stage opportunity`}
 
 ---
 
-## 7. Recommended Next Steps
+## 9. Recommended Next Steps
 
-Research suggests the following clinical and strategic timeline for further exploration:
-
-1. **This week — IP filing:** Research method-of-use patent landscapes for the top repurposing indications identified in the ${trialCount} trial registrations.
-
-2. **Month 1 — Evidence synthesis:** Commission systematic review and meta-analysis of the ${paperCount} publications (from ${sourcesStr}) and ${preprintCount} preprints to score and rank candidates by evidence strength.
-
-3. **Month 2 — Regulatory strategy:** Draft FDA Type B Pre-IND meeting briefs to explore 505(b)(2) eligibility and clinical package requirements.
-
-4. **Month 3 — Trial data access:** Analyze publicly available endpoints of the ${completedTrials} completed trial(s) for individual patient data access.
-
-5. **Month 4–6 — Proof of concept:** Clinical data indicates a lean Phase II study for the highest-ranked indication could be explored.
-
-6. **Ongoing — Surveillance:** Monitor for new ClinicalTrials.gov registrations, WHO ICTRP updates, and medRxiv preprints mentioning ${molecule}.
+1. **IP filing:** Research method-of-use patent landscapes for the top repurposing indications.
+2. **Evidence synthesis:** Commission systematic review of the ${paperCount} publications.
+3. **Regulatory strategy:** Explore 505(b)(2) eligibility with FDA.
+4. **Surveillance:** Monitor for new ClinicalTrials.gov registrations and medRxiv preprints.
 
 ---
 
-*Report synthesised by **MoleculeIQ v2** · Sources: PubMed · Europe PMC · Semantic Scholar · CrossRef · medRxiv (${preprintCount} preprints) · ClinicalTrials.gov + WHO ICTRP (${trialCount} trials) · openFDA (${fda.length} labels) · RxNorm · ChEMBL · DailyMed · All sources free · **AI Avengers · SVCE · Blueprints 2026***`;
+*Report synthesised by **MoleculeIQ v3** · Sources: PubMed · Europe PMC · Semantic Scholar · CrossRef · medRxiv · ClinicalTrials.gov · WHO ICTRP · openFDA · RxNorm · ChEMBL · DailyMed · **AI Avengers · SVCE · Blueprints 2026***`;
 
   renderReport(report);
 }
@@ -940,14 +970,14 @@ function renderViabilityBanner(banner, data, molecule) {
   const verdict = (data.verdict || 'CAUTIOUS').toUpperCase();
   const verdictClass = verdict === 'VIABLE' ? 'verdict-viable'
     : verdict === 'REJECTED' ? 'verdict-rejected'
-    : 'verdict-cautious';
+      : 'verdict-cautious';
 
   const icon = verdict === 'VIABLE' ? '✅' : verdict === 'REJECTED' ? '🚫' : '⚠️';
   const title = verdict === 'VIABLE'
     ? `${molecule} — Repurposing Worthy`
     : verdict === 'REJECTED'
-    ? `${molecule} — Too Expensive for Repurposing`
-    : `${molecule} — Requires Cost-Benefit Analysis`;
+      ? `${molecule} — Too Expensive for Repurposing`
+      : `${molecule} — Requires Cost-Benefit Analysis`;
 
   const score = data.repurposing_economic_score || 5;
   const scorePercent = score * 10;
