@@ -11,8 +11,11 @@ import requests
 import redis
 import csv
 import concurrent.futures
+import smtplib
+import random
+from email.message import EmailMessage
 from datetime import datetime, timedelta
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for
 from dotenv import load_dotenv
 # Note: All AI calls are routed through OpenRouter. google.generativeai not needed.
 
@@ -23,6 +26,14 @@ import sqlite3
 # ──────────────────────────────────────────────────────────
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+SMTP_USER = os.getenv("SMTP_USER")
+SMTP_PASS = os.getenv("SMTP_PASS")
+
+if SMTP_USER and SMTP_PASS:
+    print(f"[SMTP] Credentials loaded for {SMTP_USER}")
+else:
+    print("[SMTP] WARNING: Credentials NOT found in .env")
+
 if GEMINI_API_KEY:
     print("[OpenRouter] API key loaded successfully (routed via OpenRouter).")
 else:
@@ -31,12 +42,42 @@ else:
 from orchestrator import Translator
 translator = Translator()
 
+def send_admin_notification(roll, email):
+    """Sends a notification email to the admin for manual approval."""
+    admin_email = os.getenv("SMTP_USER")
+    try:
+        msg = EmailMessage()
+        msg.set_content(f"New Student Registration Alert!\n\nDetails:\n- Roll: {roll}\n- Email: {email}\n\nPlease log in to the MoleculeIQ Admin Panel to Approve or Reject this applicant.")
+        msg['Subject'] = f'MoleculeIQ Admin | New Registration: {roll}'
+        msg['From'] = admin_email
+        msg['To'] = admin_email
+        
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(admin_email, os.getenv("SMTP_PASS"))
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"[ADMIN NOTIFY] Error: {e}")
+        return False
+
 def init_db():
     try:
         conn = sqlite3.connect('cache.db')
+        # Drug Cache Table
         conn.execute('''CREATE TABLE IF NOT EXISTS cache
                         (molecule TEXT PRIMARY KEY, data TEXT, date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-        # Persistence enabled: No longer deleting cache on startup
+        
+        # Student Registration Table (For Manual Admin Approval)
+        conn.execute('''CREATE TABLE IF NOT EXISTS students (
+                        email TEXT PRIMARY KEY,
+                        roll TEXT UNIQUE,
+                        dept TEXT,
+                        password TEXT,
+                        status TEXT DEFAULT 'PENDING',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        
         conn.commit()
         conn.close()
     except Exception as e:
@@ -117,6 +158,20 @@ def get_chat_history(session_id):
         return []
 
 app = Flask(__name__)
+app.secret_key = os.getenv("SECRET_KEY", "blueprints_2026_default_secret_key_moleculeiq")
+
+# Global tracking for "1 Device at a Time" rule
+ACTIVE_SESSIONS = {}
+
+@app.before_request
+def check_single_device():
+    """Middleware to enforce 30-min auto-logout and 1-device-at-a-time rules."""
+    if session.get('logged_in'):
+        email = session.get('student_email')
+        # Check if this session is still the 'active' one for this email
+        if email and ACTIVE_SESSIONS.get(email) != session.get('login_token'):
+            session.clear()
+            return redirect(url_for('login', error="Active Session: You have been logged out because another device signed in."))
 
 # ──────────────────────────────────────────────────────────
 #  DATA FETCHING FUNCTIONS
@@ -897,7 +952,151 @@ def merge_trials(ct_trials: list, who_trials: list) -> list:
 
 @app.route("/")
 def index():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
     return render_template("index.html")
+
+def send_otp(email, otp):
+    """Sends a 6-digit OTP via Gmail SMTP using EmailMessage for better deliverability."""
+    smtp_user = os.getenv("SMTP_USER")
+    smtp_pass = os.getenv("SMTP_PASS")
+    
+    if not smtp_user or not smtp_pass:
+        print("[ERROR] SMTP credentials missing in .env")
+        return False
+
+    try:
+        msg = EmailMessage()
+        msg.set_content(f"Hello,\n\nYour MoleculeIQ OTP code is: {otp}\n\nThis code expires in 10 minutes. For security, please do not share this with anyone.\n\nRegards,\nMoleculeIQ Team")
+        msg['Subject'] = 'MoleculeIQ | OTP Verification Code'
+        msg['From'] = smtp_user
+        msg['To'] = email
+
+        print(f"[SMTP] Connecting to smtp.gmail.com:587...")
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.set_debuglevel(1)  # Enable verbose SMTP logs in terminal
+        server.starttls()
+        server.login(smtp_user, smtp_pass)
+        server.send_message(msg)
+        server.quit()
+        print(f"[SMTP] SUCCESS: OTP sent to {email}")
+        return True
+    except Exception as e:
+        print(f"\n[SMTP FAILURE] Detailed Error: {str(e)}")
+        print(f"[SECURITY ALERT] Fallback OTP: {otp}")
+        return False
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        joining_year = request.form.get("joining_year", "").strip()
+        register_number = request.form.get("register_number", "").strip()
+        department = request.form.get("department", "").strip()
+        password = request.form.get("password")
+
+        # Synthesize institutional identity
+        email = f"{joining_year}{register_number}@svce.ac.in".lower()
+        roll_number = register_number.upper() # Keep roll number (CS0324) for DB display
+
+        # RULE: Small letters only policy
+        if any(c.isupper() for c in email):
+            return render_template("login.html", error="Verification Failed: Institutional email must contain small letters only.")
+
+        # RULE: SVCE college email suffix
+        if not email.endswith('@svce.ac.in'):
+            return render_template("login.html", error="Verification Failed: Must use an official @svce.ac.in identifier.")
+        
+        # RULE: Department check removed for demo accessibility
+        # if department.lower() != "pharmacy":
+        #     return render_template("login.html", error="Access Denied: Only Pharmacy students are authorized.")
+
+        # RULE: Password min 8 chars
+        if len(password) < 8:
+            return render_template("login.html", error="Security Error: Password must be at least 8 characters.")
+
+        # DATABASE CHECK: Manual Approval Flow
+        conn = sqlite3.connect('cache.db')
+        conn.row_factory = sqlite3.Row
+        
+        # Check if email or roll exists
+        student = conn.execute('SELECT * FROM students WHERE email = ?', (email,)).fetchone()
+        existing_roll = conn.execute('SELECT * FROM students WHERE roll = ?', (roll_number,)).fetchone()
+        
+        if not student:
+            if existing_roll:
+                conn.close()
+                return render_template("login.html", error="Verification Failed: This Roll Number is already registered with a different identifier.")
+            
+            # Registration: Add new student as PENDING
+            try:
+                conn.execute('INSERT INTO students (email, roll, dept, password) VALUES (?, ?, ?, ?)',
+                             (email, roll_number, department, password))
+                conn.commit()
+                conn.close()
+                send_admin_notification(roll_number, email) # Notify admin
+                return render_template("login.html", error="Verification Pending: Your account has been registered. Please wait for an administrator to approve your access.")
+            except sqlite3.IntegrityError:
+                conn.close()
+                return render_template("login.html", error="Verification Failed: Roll Number or Identifier already exists.")
+        
+        conn.close()
+
+        # Check status
+        if student['status'] == 'PENDING':
+            return render_template("login.html", error="Access Pending: Admin is currently verifying your college credentials.")
+        
+        if student['status'] == 'BLOCKED':
+            return render_template("login.html", error="Access Denied: Your account has been revoked by the administrator.")
+
+        # If APPROVED, proceed directly to Dashboard (OTP bypassed per user request)
+        session['logged_in'] = True
+        session['student_email'] = email
+        session.permanent = True
+        app.permanent_session_lifetime = timedelta(minutes=30)
+        
+        return redirect(url_for('index'))
+
+    return render_template("login.html")
+
+@app.route("/verify-otp", methods=["GET", "POST"])
+def verify_otp():
+    if 'pending_email' not in session:
+        return redirect(url_for('login'))
+        
+    if request.method == "POST":
+        user_otp = request.form.get("otp")
+        current_time = datetime.now().timestamp()
+        
+        # Check Expiry (10 mins)
+        if current_time - session.get('otp_time', 0) > 600:
+            return render_template("otp_verify.html", error="OTP Expired. Please login again.")
+            
+        if user_otp == session.get('pending_otp'):
+            # RULE: 1 Device Access (Enforce global override)
+            email = session.get('pending_email')
+            login_token = str(random.getrandbits(64))
+            ACTIVE_SESSIONS[email] = login_token
+            
+            session['logged_in'] = True
+            session['student_email'] = email
+            session['login_token'] = login_token
+            session.permanent = True
+            app.permanent_session_lifetime = timedelta(minutes=30)
+            
+            # Clear pending state
+            session.pop('pending_otp', None)
+            return redirect(url_for('index'))
+        else:
+            return render_template("otp_verify.html", error="Invalid OTP. Please check your email.")
+            
+    return render_template("otp_verify.html")
+
+# Admin functionality removed and moved to admin_portal.py (Port 5001)
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
 
 
 @app.route("/api/suggest")
